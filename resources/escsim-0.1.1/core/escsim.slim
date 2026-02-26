@@ -1,0 +1,80 @@
+	// set up a simple neutral simulation
+initialize() {
+	if (exists("slimgui")) {
+		catn('________________________________________', error=F);
+		catn("SlimGUI exists", error=F);
+		catn("Running in dev mode!", error=F);
+		catn('========================================', error=F);
+		
+		defineConstant("popsize", "5000");
+		defineConstant("selcoef", "4e-4");
+		defineConstant("mutrate", "0.006");
+		defineConstant("seqlen", "15000");
+		defineConstant("burnin", "5000");
+		defineConstant("ending", "50000");
+	
+	}
+	// Rewrite constants
+	defineConstant("POPSIZE", asInteger(popsize));
+	defineConstant("SELCOEF", -abs(asFloat(selcoef)));
+	defineConstant("MUTRATE", asFloat(mutrate)/asInteger(seqlen));
+	defineConstant("SEQLEN", asInteger(seqlen));
+	defineConstant("BURNIN", asInteger(burnin));
+	defineConstant("ENDING", asInteger(ending));
+	
+	
+	
+	// Simulation init
+	initializeSex();
+	initializeMutationType("m1", 1.0, "f", SELCOEF);
+	initializeGenomicElementType("g1", m1, 1.0);
+	m1.convertToSubstitution = T;  // will count substitutions
+	
+	
+	// Chromosome model (mtDNA)
+	{
+		id			= 1;
+		length	= SEQLEN;
+		type		= "HF";
+		
+		// initializeChromosome(1, length=length, type=type);
+		initializeMutationRate(MUTRATE);
+		initializeRecombinationRate(0);
+		initializeGenomicElement(g1, 0, SEQLEN-1);
+	}
+	
+	// Initialize outputfile
+	headerline = "#cycle:min_burden:consequential_counts_incl_min";
+	catn(headerline, error=T);
+}
+
+// create a population
+1 early() {
+	sim.addSubpop("p1", POPSIZE);
+}
+
+
+// Mutational burden
+1: late() {
+	if (sim.cycle >= BURNIN) {
+		// Get mut burden
+		burden = p1.individuals.haplosomesForChromosomes(1).countOfMutationsOfType(m1);
+		min = min(burden);	
+		tab = tabulate(burden)[min:max(burden)];
+		newLine = paste(sim.cycle, min+sim.substitutions.size(), paste(tab, sep=","), sep=":");
+	
+		catn(newLine, error=T);
+	}
+}
+
+1: late() {
+	if (sim.cycle >= ENDING) {
+		sim.simulationFinished();
+	}	
+}
+
+
+// Final output to enforce simulation
+1000000 late() {
+	stop("[ERROR] Safety stop after 1 Mio generations!");
+}

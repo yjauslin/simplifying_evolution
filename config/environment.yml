@@ -1,0 +1,35 @@
+name: coalescent_simulations
+channels:
+  - conda-forge
+dependencies:
+  - archspec=0.2.5=pyhd8ed1ab_0
+  - boltons=25.0.0=pyhd8ed1ab_0
+  - certifi=2026.1.4=pyhd8ed1ab_0
+  - charset-normalizer=3.4.4=pyhd8ed1ab_0
+  - conda-libmamba-solver=25.11.0=pyhd8ed1ab_1
+  - conda-package-handling=2.4.0=pyh7900ff3_2
+  - conda-package-streaming=0.12.0=pyhd8ed1ab_0
+  - distro=1.9.0=pyhd8ed1ab_1
+  - h2=4.3.0=pyhcf101f3_0
+  - hpack=4.1.0=pyhd8ed1ab_0
+  - hyperframe=6.1.0=pyhd8ed1ab_0
+  - idna=3.11=pyhd8ed1ab_0
+  - jsonpatch=1.33=pyhd8ed1ab_1
+  - jsonpointer=3.0.0=pyhcf101f3_3
+  - nlohmann_json-abi=3.12.0=h0f90c79_1
+  - packaging=26.0=pyhcf101f3_0
+  - pip=26.0.1=pyh145f28c_0
+  - platformdirs=4.5.1=pyhcf101f3_0
+  - pluggy=1.6.0=pyhf9edf01_1
+  - pybind11-abi=11=hc364b38_1
+  - pycparser=2.22=pyh29332c3_1
+  - python_abi=3.13=8_cp313
+  - requests=2.32.5=pyhcf101f3_1
+  - setuptools=82.0.0=pyh332efcf_0
+  - truststore=0.10.4=pyhcf101f3_0
+  - tzdata=2025c=hc9c84f9_1
+  - urllib3=2.6.3=pyhd8ed1ab_0
+  - pip:
+      - click==8.3.1
+      - -e ../resources/escsim-0.1.1
+      - pyyaml==6.0.3

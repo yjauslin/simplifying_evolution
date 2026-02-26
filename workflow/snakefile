@@ -1,0 +1,81 @@
+configfile: "config/config.yml"
+
+conda: "config/environment.yml"
+
+
+from itertools import product
+
+def all_simulations():
+    outputs = []
+    for exp in config["experiments"].values():
+        for N, U, s in product(exp["pop_size"], exp["mut_rate"], exp["sel_coef"]):
+            outputs.append(f"results/escsim/escsim_N{N}_U{U}_s{s}.out")
+    return outputs
+
+def all_density_outputs():
+    outputs = []
+    for exp in config["experiments"].values():
+        for N, U, s in product(exp["pop_size"], exp["mut_rate"], exp["sel_coef"]):
+            outputs.append(f"results/coalescent_densities/N{N}_U{U}_s{s}.out")
+    return outputs
+
+rule all:
+    input:
+        all_simulations(),
+        "results/escsim_figures/FIGURE_PDF.pdf",
+        "results/escsim_figures/FIGURE_PDF_mean_velocity_summary.pdf",
+        "results/escsim_figures/coalescent_density.pdf",
+        "results/escsim_figures/effective_population_size.pdf"
+
+
+rule escsim_run:
+    output:
+        "results/escsim/escsim_N{N}_U{U}_s{s}.out"
+    params:
+        CHRMLEN=config["constants"]["CHRMLEN"],
+        BURNIN=config["constants"]["BURNIN"]
+    shell:
+        """
+        escsim run \
+            -f results/escsim \
+            {wildcards.N} {wildcards.s} {wildcards.U} \
+            {params.CHRMLEN} {params.BURNIN}
+        """
+    
+rule escsim_summarize:
+    input:
+        all_simulations()
+    output:
+        "results/escsim_figures/FIGURE_PDF.pdf",
+        "results/escsim_figures/FIGURE_PDF_mean_velocity_summary.pdf"
+    shell:
+        """
+        escsim summarize \
+            -i results/escsim \
+            -o results/escsim_figures \
+            FIGURE_PDF
+        """
+
+rule calc_coalescent_density:
+    input:
+        "results/escsim/escsim_N{N}_U{U}_s{s}.out"
+    output:
+        "results/coalescent_densities/N{N}_U{U}_s{s}.out"
+    shell:
+        """
+        python workflow/scripts/calc_coalescent_density.py \
+            --input {input} \
+            --output results/coalescent_densities \
+            {wildcards.N} {wildcards.s} {wildcards.U}
+        """
+
+rule visualize_densities:
+    input:
+        all_density_outputs()
+    output:
+        "results/escsim_figures/coalescent_density.pdf",
+        "results/escsim_figures/effective_population_size.pdf"
+    shell:
+        """
+        python workflow/scripts/visualize_densities.py
+        """

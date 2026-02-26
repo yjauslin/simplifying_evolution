@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "escsim"
+version = "0.1.1"
+description = "A command line tool for evolution simulations"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "click>=8.0",
+    "tqdm>=4.60",
+    "pyyaml>=5.4",
+]
+
+[project.scripts]
+escsim = "cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/escsim"
+Issues = "https://github.com/yourusername/escsim/issues"
+
+[tool.setuptools]
+py-modules = ["cli", "__init__"]
+packages = ["core", "config"]
+
+[tool.setuptools.package-data]
+config = ["*.yaml"]
+core = ["*.slim"]

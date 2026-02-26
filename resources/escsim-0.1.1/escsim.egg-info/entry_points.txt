@@ -1,0 +1,2 @@
+[console_scripts]
+escsim = cli:main

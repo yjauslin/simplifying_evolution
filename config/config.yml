@@ -1,0 +1,20 @@
+experiments:
+
+  vary_s:
+    pop_size: [5000]
+    mut_rate: [0.006]
+    sel_coef: [0.0, 0.0001, 0.0004, 0.01]
+  
+  vary_u:
+    pop_size: [5000]
+    mut_rate: [0.0001, 0.0004, 0.006, 0.01]
+    sel_coef: [0.002]
+  
+  vary_n:
+    pop_size: [500, 2000, 10000, 15000]
+    mut_rate: [0.006]
+    sel_coef: [0.002]
+
+constants:
+  CHRMLEN: 15000
+  BURNIN: 1
