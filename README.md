@@ -16,7 +16,9 @@ This project investigates the distribution of fitness effects in non-recombining
   - [escsim/](results/escsim/): Folder containing simulation results of the esc model in forward time.
 
 - workflow/
-  - scripts
+  - scripts/
+    - calc_coalescent_densities.py: Calculates the coalescent densities based upon the simulation results from the forward-time simulations.
+    - visualize_coalescent_densities.py: Plots the calculated densities plus the effective population size.  
   - [snakefile](workflow/snakefile): File listing all the necessary rules to produce results.
 
 
