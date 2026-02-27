@@ -15,8 +15,11 @@ import click
 @click.argument('sel_coef', type=float)
 @click.argument('mut_rate', type=float)
 
-@click.option('--input_folder', '-i', default='results/escsim', help='Input folder for simulation results (default: results/escsim)')
-@click.option('--output', '-o', default='results/coalescent_densities', help='Output folder for coalescent densities (default: results/coalescent_densities)')
+@click.option('--input_folder', '-i', default='results/escsim',
+            help='Input folder for simulation results (default: results/escsim)')
+@click.option('--output', '-o', default='results/coalescent_densities',
+              help='Output folder for coalescent densities '
+              '(default: results/coalescent_densities)')
 
 def write_file(pop_size, sel_coef, mut_rate, input_folder, output):
     """
@@ -24,7 +27,7 @@ def write_file(pop_size, sel_coef, mut_rate, input_folder, output):
     calculates the coalescent densities and effective population size,
     and writes the results to an output file.
     """
-    file_path = Path(input)
+    file_path = Path(input_folder)
     if not file_path.exists():
         click.echo(f"Error: File {file_path} does not exist.")
         return
@@ -40,7 +43,9 @@ def write_file(pop_size, sel_coef, mut_rate, input_folder, output):
     time_points = np.arange(0, max_t, delta_t)
 
     # calculate coalescent rates, effective population size, and coalescent densities
-    coalescent_rates = calc_effective_coalescent_rates(mut_burden_profile, pop_size, mut_rate, velocity, time_points=time_points)
+    coalescent_rates = calc_effective_coalescent_rates(mut_burden_profile, pop_size,
+                                                       mut_rate, velocity,
+                                                       time_points=time_points)
     effective_pop_size = calc_effective_population_size(coalescent_rates)
     coalescent_densities = calc_coalescent_density(effective_pop_size, time_points)
     
@@ -53,7 +58,10 @@ def write_file(pop_size, sel_coef, mut_rate, input_folder, output):
 
     # Write results to output file
     with open(f"{output}/N{pop_size}_U{mut_rate}_s{sel_coef}.out", "w") as f:
-        header = ["popsize", "selcoef", "mutrate", "velocity", "rates", "effective_pop_size", "density", "time"]
+        header = ["popsize", "selcoef",
+                  "mutrate", "velocity",
+                  "rates", "effective_pop_size",
+                  "density", "time"]
         f.write("\t".join(header) + "\n")
 
         str_coalescent_rates = ','.join(map(str, coalescent_rates))
@@ -62,7 +70,7 @@ def write_file(pop_size, sel_coef, mut_rate, input_folder, output):
         str_t = ','.join(map(str, time_points))
 
         line = [str(pop_size), str(sel_coef),
-                str(mut_rate), str(v),
+                str(mut_rate), str(velocity),
                 str_coalescent_rates, str_effective_pop_size,
                 str_coalescent_densities, str_t]
         f.write("\t".join(line) + "\n")
@@ -87,13 +95,15 @@ def read_params(df):
     return pop_size, mut_rate, sel_coef, velocity
 
 def create_transition_matrix(mut_burden_profile, mut_rate, velocity):
-    """ Creates the transition matrix for the backward simulation. 
+    """ 
+    Creates the transition matrix for the backward simulation. 
     mut_burden_profile: List of mutation burden profiles for each time point. 
     mut_rate: Mutation rate. 
     velocity: Velocity of the wave.
     
-    Returns: transition_matrix: A 2D numpy array representing the transition probabilities between states. """
-    
+    Returns: transition_matrix: A 2D numpy array representing the transition probabilities
+                                between states. """
+
     # Get the number of states from the length of the mutational burden profile
     num_states = len(mut_burden_profile)
 
@@ -105,15 +115,18 @@ def create_transition_matrix(mut_burden_profile, mut_rate, velocity):
 
         # skip states with zero mutational burden to avoid division by zero
         if mut_burden_profile[k] == 0:
-           continue
+            continue
 
-        # fill in the matrix with backward transition rates    
+        # fill in the matrix with backward transition rates
         if k > 0:
-            transition_rate_matrix[k, k-1] = mut_rate * mut_burden_profile[k-1] / mut_burden_profile[k]
+            transition_rate_matrix[k, k-1] = (mut_rate * mut_burden_profile[k-1] /
+                                              mut_burden_profile[k])
 
         # fill in the matrix with forward transition rates
         if k < num_states - 1:
-            transition_rate_matrix[k, k+1] = mut_rate * velocity * mut_burden_profile[k+1] / mut_burden_profile[k]
+            transition_rate_matrix[k, k+1] = (mut_rate * velocity *
+                                              mut_burden_profile[k+1] /
+                                              mut_burden_profile[k])
 
     # fill diagonals by enforcing row sums to zero
     row_sums = transition_rate_matrix.sum(axis=1)
@@ -146,14 +159,16 @@ def calc_coalescent_rates_per_class(mut_burden_profile, lineage_dist, pop_size):
     Calculates the coalescent rates for a given mutational burden profile and parameters.
     
     mut_burden_profile: Initial mutational burden profiles.
-    lineage_dist: The distribution of lineages across fitness classes at a given time point.
+    lineage_dist: The distribution of lineages
+                across fitness classes at a given time point.
     pop_size: Population size.
 
 
     Returns:
     A numpy array representing the coalescent rates at the specified time point.
     """
-    # return coalescent rates per class as (lineage distribution)^2 / (population size * mutational burden profile)
+    # return coalescent rates per class as
+    # (lineage distribution)^2 / (population size * mutational burden profile)
     return np.square(lineage_dist) / (pop_size * mut_burden_profile)
 
 
