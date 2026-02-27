@@ -117,7 +117,7 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
         jobs=jobs,
     )
     results = run_external(seeds=seeds, **params)
-        
+    click.echo(f"{results}")  
 
     # Test seeds
     seeds_observed = [res["seed"] for res in results]
@@ -135,7 +135,7 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
         header = ["sim_id", "seed", "popsize", "selcoef", "mutrate", "velocity", "profile"]
         fout.write("\t".join(header) + "\n")
         
-        for res in results:
+        for res in results[:-2]:
             profile_str = ",".join(map(str, res["profile"]))
             line = [
                 str(res["sim_id"]),
@@ -147,6 +147,24 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
                 profile_str
             ]
             fout.write("\t".join(line) + "\n")
+    click.echo("Writing wave file")
+    out_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}.out")
+    with open(out_file, 'w') as fout:
+
+        header = ["time", "wave"]
+        fout.write("\t".join(header) + "\n")
+        
+        for res in results:
+            wave = res.get("wave", [])
+            time = res.get("time", [])
+            if not wave or not time:
+                click.echo(f"[WARNING] Missing wave or time for sim_id {res.get('sim_id')}")
+                continue
+        
+            for i, row in enumerate(wave):
+                wave_str = ",".join(map(str, row))
+                line = [str(time[i]), wave_str]
+                fout.write("\t".join(line) + "\n")
 
 
     # Print summary of parameters

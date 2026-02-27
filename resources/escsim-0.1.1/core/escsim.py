@@ -34,7 +34,7 @@ def run_single_sim(cmd, sim_id):
     mean_burden_pred = model_full.predict(time_flat.reshape(-1, 1)).reshape(wave.shape)
     wave = wave - mean_burden_pred
     wave = wave - wave.min()
-    del mean_burden_pred, time_flat, model_full, time
+    del mean_burden_pred, time_flat, model_full
 
     # Make burden histogram
     bin_edges = np.arange(-0.05, np.ceil(wave.max()) + 1.5, 1)
@@ -42,7 +42,7 @@ def run_single_sim(cmd, sim_id):
     profile = np.trim_zeros(profile, trim="b")  # remove trailing zeros from back
     profile = profile/profile.sum()  # get frequency
 
-    del wave, bin_edges, _
+    del bin_edges, _
 
     return {
         "sim_id": sim_id,
@@ -51,7 +51,9 @@ def run_single_sim(cmd, sim_id):
         "selcoef": args.get("selcoef"),
         "mutrate": mutrate,
         "velocity": velocity,
-        "profile": profile
+        "profile": profile,
+        "wave": wave,
+        "time": time
     }
 
 
