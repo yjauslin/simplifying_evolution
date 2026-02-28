@@ -117,7 +117,6 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
         jobs=jobs,
     )
     results = run_external(seeds=seeds, **params)
-    click.echo(f"{results}")  
 
     # Test seeds
     seeds_observed = [res["seed"] for res in results]
@@ -135,7 +134,7 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
         header = ["sim_id", "seed", "popsize", "selcoef", "mutrate", "velocity", "profile"]
         fout.write("\t".join(header) + "\n")
         
-        for res in results[:-2]:
+        for res in results:
             profile_str = ",".join(map(str, res["profile"]))
             line = [
                 str(res["sim_id"]),
@@ -155,11 +154,8 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
         fout.write("\t".join(header) + "\n")
         
         for res in results:
-            wave = res.get("wave", [])
-            time = res.get("time", [])
-            if not wave or not time:
-                click.echo(f"[WARNING] Missing wave or time for sim_id {res.get('sim_id')}")
-                continue
+            wave = res["wave"]
+            time = res["time"]
         
             for i, row in enumerate(wave):
                 wave_str = ",".join(map(str, row))

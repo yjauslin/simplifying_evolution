@@ -117,7 +117,6 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
         jobs=jobs,
     )
     results = run_external(seeds=seeds, **params)
-        
 
     # Test seeds
     seeds_observed = [res["seed"] for res in results]
@@ -126,9 +125,9 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
 
 
     # Write to output folder (Folder name should be escsim_YYYY-MM-DD_rndomstr.out)
-    date = datetime.datetime.now().strftime('%Y-%m-%d')
-    rndstr = hashlib.md5(''.join(map(str, seeds)).encode()).hexdigest()[:8]
-    outfile = os.path.join(folder, f"escsim_{date}_{rndstr}.out")
+    # date = datetime.datetime.now().strftime('%Y-%m-%d')
+    # rndstr = hashlib.md5(''.join(map(str, seeds)).encode()).hexdigest()[:8]
+    outfile = os.path.join(folder, f"escsim_N{int(popsize)}_U{mutrate}_s{selcoef}.out")
     
     with open(outfile, 'w') as fout:
         # Write header
@@ -147,6 +146,23 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
                 profile_str
             ]
             fout.write("\t".join(line) + "\n")
+    click.echo("Writing wave file")
+    click.echo(f"{results}")
+    out_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}.out")
+    with open(out_file, 'w') as fout:
+
+        header = ["time", "wave"]
+        fout.write("\t".join(header) + "\n")
+        
+        for res in results:
+            wave = res["wave"]
+            time = res["time"]
+            click.echo(f"{wave}, {time}")
+        
+            for i, row in enumerate(wave):
+                wave_str = ",".join(map(str, row))
+                line = [str(time[i]), wave_str]
+                fout.write("\t".join(line) + "\n")
 
 
     # Print summary of parameters
@@ -177,7 +193,9 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
     click.echo(f"[INFO] Plotting results from folder: {input_folder}")
 
     # Get all files that have the form escsim_YYYY-MM-DD_*.out
-    sim_files = [f for f in os.listdir(input_folder) if re.match(r"escsim_\d{4}-\d{2}-\d{2}_.+\.out", f)]
+    # sim_files = [f for f in os.listdir(input_folder) if re.match(r"escsim_\d{4}-\d{2}-\d{2}_.+\.out", f)]
+    # Get all files that have the form escsim_N{N}_U{U}_s{s}.out
+    sim_files = [f for f in os.listdir(input_folder) if re.match(r"escsim_N\d+_U\d+(\.\d+)?_s\d+(\.\d+)?\.out", f)]
     click.echo(f"[INFO] Found {len(sim_files)} simulation result file(s).")
     df_list = []
     for _, sim_file in enumerate(sim_files):

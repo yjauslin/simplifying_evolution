@@ -25,6 +25,8 @@ def run_single_sim(cmd, sim_id):
         
     time, wave = parse_result(result.stderr)
 
+    wave_raw = wave.copy()
+
     # Fit linear model to calculate velocity
     time_flat = np.repeat(time, wave.shape[1])
     model_full = lm.LinearRegression().fit(time_flat.reshape(-1, 1), wave.flatten("C"))
@@ -42,7 +44,7 @@ def run_single_sim(cmd, sim_id):
     profile = np.trim_zeros(profile, trim="b")  # remove trailing zeros from back
     profile = profile/profile.sum()  # get frequency
 
-    del bin_edges, _
+    del bin_edges, _, wave
 
     return {
         "sim_id": sim_id,
@@ -52,7 +54,7 @@ def run_single_sim(cmd, sim_id):
         "mutrate": mutrate,
         "velocity": velocity,
         "profile": profile,
-        "wave": wave,
+        "wave": wave_raw,
         "time": time
     }
 
@@ -174,7 +176,7 @@ def run_external(seeds, **kwargs):
         
         for future in tqdm(as_completed(futures), total=len(futures), desc="Running simulations"):
             results.append(future.result())
-    
+
     return results
 
 
