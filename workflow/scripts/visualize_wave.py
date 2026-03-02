@@ -1,6 +1,9 @@
+from pathlib import Path
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+import click
 
 def load_wave_file(filename):
     times = []
@@ -30,30 +33,60 @@ def compute_density_matrix(wave_matrix):
         
     return density
 
-times, waves = load_wave_file("tmp/results/wave_N5000_U0.006_s0.0004.out")
-wave_matrix = np.vstack(waves)
+@click.command()
+@click.argument('pop_size', type=int)
+@click.argument('sel_coef', type=float)
+@click.argument('mut_rate', type=float)
 
-density = compute_density_matrix(wave_matrix)
+@click.option('--input_folder', '-i', default='tmp/results',
+            help='Input folder for simulation results (default: tmp/results)')
+@click.option('--output', '-o', default='results/escsim_figures',
+              help='Output folder for coalescent densities '
+              '(default: results/coalescent_densities)')
 
-plt.figure(figsize=(10, 6))
+def visualize_wave(input_folder, output, pop_size, mut_rate, sel_coef):
+    
+    file_path = Path(input_folder)
+    if not file_path.exists():
+        click.echo(f"Error: File {file_path} does not exist.")
+        return
+    
+    # Ensure output folder exists
+    if os.path.exists(output):
+        click.echo("[INFO] Output folder already exists.")
+    else:
+        os.makedirs(output, exist_ok=True)
+        click.echo("[INFO] Created output folder.")
 
-# Use LogNorm to map 1..max to colors, zeros will be white
-cmap = plt.cm.inferno 
-cmap.set_under("white")  # values below vmin are white
+    times, waves = load_wave_file(f"{input_folder}/wave_N{pop_size}_U{mut_rate}_s{sel_coef}.out")
+    wave_matrix = np.vstack(waves)
 
-plt.imshow(
-    density.T,               # transpose so mutational load is vertical
-    aspect="auto",
-    origin="lower",
-    extent=[times.min(), times.max(), 0, density.shape[1]],
-    norm=LogNorm(vmin=1, vmax=density.max()),
-    cmap=cmap
-)
+    density = compute_density_matrix(wave_matrix)
 
-plt.colorbar(label="Number of individuals (log scale)")
-plt.xlabel("Time")
-plt.ylabel("Mutational load")
-plt.title("Mutation wave dynamics")
-plt.tight_layout()
-plt.show()
+    plt.figure(figsize=(10, 6))
 
+    # Use LogNorm to map 1..max to colors, zeros will be white
+    cmap = plt.cm.inferno 
+    cmap.set_under("white")  # values below vmin are white
+
+    plt.imshow(
+        density.T,               # transpose so mutational load is vertical
+        aspect="auto",
+        origin="lower",
+        extent=[times.min(), times.max(), 0, density.shape[1]],
+        norm=LogNorm(vmin=1, vmax=density.max()),
+        cmap=cmap
+        )
+
+    plt.colorbar(label="Number of individuals (log scale)")
+    plt.xlabel("Time")
+    plt.ylabel("Mutational load")
+    plt.title(f"N = {pop_size} U = {mut_rate} s = {sel_coef}")
+    plt.tight_layout()
+
+    plt.savefig(f"{output}/wave_N{pop_size}_U{mut_rate}_s{sel_coef}.pdf")
+    click.echo(f"[INFO] Saved plot to {output}.")
+
+
+if __name__ == "__main__":
+    visualize_wave()

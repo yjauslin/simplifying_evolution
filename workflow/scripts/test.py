@@ -197,7 +197,7 @@ esc_pop_size = calc_popsize_esc(time, N, U, v, profile)[1]
 esc_density = estimate_coaldens_from_popsize(time, esc_pop_size)[1]
 
 sns.lineplot(x=time, y=density, label="Yannick")
-sns.lineplot(x=time, y=esc_density, label="Stefan")
+sns.lineplot(x=time, y=esc_density, label="Stefan", ls = "--")
 plt.title(f"N={N}, U={U}, s={sel_coef}")
 plt.xlabel("Time (Generations)")
 plt.ylabel("Coalescent Density")
