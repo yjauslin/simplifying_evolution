@@ -17,8 +17,9 @@ This project investigates the distribution of fitness effects in non-recombining
 
 - workflow/
   - scripts/
-    - calc_coalescent_densities.py: Calculates the coalescent densities based upon the simulation results from the forward-time simulations.
-    - visualize_coalescent_densities.py: Plots the calculated densities plus the effective population size.  
+    - calc_coalescent_densities.py: Calculates the coalescent densities and writes the waves into result files based upon the simulation results from the forward-time simulations.
+    - visualize_coalescent_densities.py: Plots the calculated densities plus the effective population size.
+    - visualize_wave.py: Plots individual waves to verify whether they are equilibrated
   - [snakefile](workflow/snakefile): File listing all the necessary rules to produce results.
 
 
