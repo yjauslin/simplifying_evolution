@@ -37,6 +37,13 @@ def write_file(pop_size, sel_coef, mut_rate, input_folder, output):
     mut_burden_profile = np.array(results_file["profile"].iloc[0].split(","), dtype=float)
     velocity = read_params(results_file)[3]
 
+    if velocity > 1:
+        click.echo("[INFO] Velocity > 1, setting to 1.")
+        velocity = 1
+    if velocity < 0:
+        click.echo("[INFO] Negative velocity, setting to 0.")
+        velocity = 0
+
     # set time points for which to calculate coalescent densities
     max_t = 5000
     delta_t = 1
