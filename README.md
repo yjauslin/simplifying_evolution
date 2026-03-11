@@ -2,8 +2,7 @@
 
 ## Description
 
-This project investigates the distribution of fitness effects in non-recombining regions. It does so by implementing the extended structured coalescent by Strütt et al. (2025) and adding an efficient selection coefficient ($s_e$) to it. 
-
+This project investigates the distribution of fitness effects in non-recombining regions. It does so by implementing the extended structured coalescent by Strütt et al. (2025) and extending it to include different distributions of fitness effects for the selection coefficient.
 ## Structure
 
 - config
