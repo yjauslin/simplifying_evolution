@@ -81,6 +81,8 @@ def write_file(pop_size, sel_coef, mut_rate, input_folder, output):
                 str_coalescent_rates, str_effective_pop_size,
                 str_coalescent_densities, str_t]
         f.write("\t".join(line) + "\n")
+        click.echo(f"[INFO] Results saved to "
+                   f"{output}/N{pop_size}_U{mut_rate}_s{sel_coef}.out")
 
 
 def read_params(df):

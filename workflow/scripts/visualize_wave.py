@@ -1,8 +1,8 @@
 from pathlib import Path
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-import os
 import click
 
 
