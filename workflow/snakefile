@@ -23,14 +23,14 @@ def all_waves_outputs():
     outputs = []
     for exp in config["experiments"].values():
         for N, U, s in product(exp["pop_size"], exp["mut_rate"], exp["sel_coef"]):
-            outputs.append(f"results/escsim_figures/wave_N{N}_U{U}_s{s}.pdf")
+            outputs.append(f"results/escsim/wave_N{N}_U{U}_s{s}.out")
     return outputs
 
 rule all:
     input:
         all_simulations(),
         all_density_outputs(),
-        all_waves_outputs(),
+        "results/escsim_figures/wave_summary.pdf",
         "results/escsim_figures/FIGURE_PDF.pdf",
         "results/escsim_figures/FIGURE_PDF_mean_velocity_summary.pdf",
         "results/escsim_figures/coalescent_density.pdf",
@@ -67,14 +67,13 @@ rule escsim_summarize:
 
 rule visualize_wave:
     input:
-        "results/escsim/wave_N{N}_U{U}_s{s}.out"
+        all_waves_outputs()
     output:
-        "results/escsim_figures/wave_N{N}_U{U}_s{s}.pdf"
+        "results/escsim_figures/wave_summary.pdf"
     shell:
         """
         python workflow/scripts/visualize_wave.py \
-            --input_folder results/escsim \
-            {wildcards.N} {wildcards.s} {wildcards.U}
+            --input_folder results/escsim
         """
 
 rule calc_coalescent_density:

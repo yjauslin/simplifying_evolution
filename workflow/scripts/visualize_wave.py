@@ -1,9 +1,10 @@
 from pathlib import Path
-import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+import os
 import click
+
 
 def load_wave_file(filename):
     times = []
@@ -11,7 +12,6 @@ def load_wave_file(filename):
 
     with open(filename) as f:
         next(f)  # skip header
-        
         for line in f:
             t, wave_str = line.rstrip().split("\t")
             times.append(int(t))
@@ -19,74 +19,111 @@ def load_wave_file(filename):
 
     return np.array(times), waves
 
+
 def compute_density_matrix(wave_matrix):
     max_load = wave_matrix.max()
     T = wave_matrix.shape[0]
-    
+
     density = np.zeros((T, max_load + 1), dtype=int)
-    
+
     for i in range(T):
         density[i] = np.bincount(
             wave_matrix[i],
             minlength=max_load + 1
         )
-        
+
     return density
 
+
 @click.command()
-@click.argument('pop_size', type=int)
-@click.argument('sel_coef', type=float)
-@click.argument('mut_rate', type=float)
-
-@click.option('--input_folder', '-i', default='tmp/results',
-            help='Input folder for simulation results (default: tmp/results)')
+@click.option('--input_folder', '-i', default='results/escsim',
+            help='Input folder for wave results from forward simulations'
+            '(default: results/escsim)')
 @click.option('--output', '-o', default='results/escsim_figures',
-              help='Output folder for coalescent densities '
-              '(default: results/coalescent_densities)')
+              help='Output folder for wave plots summary file '
+              '(default: results/escsim_figures)')
 
-def visualize_wave(input_folder, output, pop_size, mut_rate, sel_coef):
-    
-    file_path = Path(input_folder)
-    if not file_path.exists():
-        click.echo(f"Error: File {file_path} does not exist.")
+def summarize_waves(input_folder, output):
+
+    input_path = Path(input_folder)
+    files = sorted(input_path.glob("wave_*.out"))
+
+    if len(files) == 0:
+        click.echo("No wave files found.")
         return
-    
-    # Ensure output folder exists
-    if os.path.exists(output):
-        click.echo("[INFO] Output folder already exists.")
-    else:
-        os.makedirs(output, exist_ok=True)
-        click.echo("[INFO] Created output folder.")
 
-    times, waves = load_wave_file(f"{input_folder}/wave_N{pop_size}_U{mut_rate}_s{sel_coef}.out")
-    wave_matrix = np.vstack(waves)
+    n = len(files)
 
-    density = compute_density_matrix(wave_matrix)
+    cols = 4
+    rows = int(np.ceil(n / cols))
 
-    plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(16, 4 * rows))
 
-    # Use LogNorm to map 1..max to colors, zeros will be white
-    cmap = plt.cm.inferno 
-    cmap.set_under("white")  # values below vmin are white
+    # grid with extra column for colorbar
+    gs = plt.GridSpec(
+        rows,
+        cols + 1,
+        width_ratios=[1]*cols + [0.05],
+        figure=fig
+    )
 
-    plt.imshow(
-        density.T,               # transpose so mutational load is vertical
-        aspect="auto",
-        origin="lower",
-        extent=[times.min(), times.max(), 0, density.shape[1]],
-        norm=LogNorm(vmin=1, vmax=density.max()),
-        cmap=cmap
+    # create subplot axes
+    axes = []
+    for r in range(rows):
+        for c in range(cols):
+            axes.append(fig.add_subplot(gs[r, c]))
+
+    # colorbar axis (spans all rows)
+    cax = fig.add_subplot(gs[:, -1])
+
+    cmap = plt.cm.inferno
+    cmap.set_under("white")
+
+    vmax_global = 0
+    densities = []
+    times_list = []
+
+    # first pass: compute densities
+    for file in files:
+        times, waves = load_wave_file(file)
+        wave_matrix = np.vstack(waves)
+        density = compute_density_matrix(wave_matrix)
+
+        densities.append(density)
+        times_list.append(times)
+
+        vmax_global = max(vmax_global, density.max())
+
+    # second pass: plot
+    for ax, file, density, times in zip(axes, files, densities, times_list):
+
+        im = ax.imshow(
+            density.T,
+            aspect="auto",
+            origin="lower",
+            extent=[times.min(), times.max(), 0, density.shape[1]],
+            norm=LogNorm(vmin=1, vmax=vmax_global),
+            cmap=cmap
         )
 
-    plt.colorbar(label="Number of individuals (log scale)")
-    plt.xlabel("Time")
-    plt.ylabel("Mutational load")
-    plt.title(f"N = {pop_size} U = {mut_rate} s = {sel_coef}")
+        ax.set_title(file.stem.replace("wave_", ""))
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Mutational load")
+
+    # hide unused axes
+    for ax in axes[n:]:
+        ax.axis("off")
+
+    # add colorbar in dedicated axis
+    fig.colorbar(im, cax=cax, label="Individuals (log scale)")
+
     plt.tight_layout()
 
-    plt.savefig(f"{output}/wave_N{pop_size}_U{mut_rate}_s{sel_coef}.pdf")
-    click.echo(f"[INFO] Saved plot to {output}.")
+    os.makedirs(output, exist_ok=True)
+    plt.savefig(f"{output}/wave_summary.pdf", bbox_inches="tight")
+
+    click.echo(f"[INFO] Saved summary plot to {output}")
 
 
 if __name__ == "__main__":
-    visualize_wave()
+    summarize_waves()
