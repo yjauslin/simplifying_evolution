@@ -12,7 +12,7 @@ def parse_filename(path):
     """
     Function to find all result files and return their parameters.
     """
-    match = re.search(r"N(\d+)_U([\d.]+)_s([\d.]+)", path.stem)
+    match = re.search(r"N(\d+)_U([\deE.+-]+)_s([\deE.+-]+)", path.stem)
     if match is None:
         raise ValueError(f"Filename {path.name} does not match expected pattern.")
     pop_size = int(match.group(1))
