@@ -66,13 +66,16 @@ def main():
 @click.argument('popsize', type=float)
 @click.argument('selcoef', type=float)
 @click.argument('mutrate', type=float)
+@click.argument('sigma', type=float, required=False)
 @click.argument('chrmlen', type=int, required=False)
 @click.argument('burnin', type=int, required=False)
 @click.argument('gens', type=int, required=False)
 @click.option('--jobs', '-j', default=1, help='Number of parallel jobs to run')
 @click.option('--workers', '-w', default=1, help='Maximum number of worker processes')
 @click.option('--folder', '-f', default='tmp/results', help='Output folder for simulation results; will use existing simulations if found (default: tmp/results)')
-def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder):
+@click.option('--mode', '-m', default='f', help='Determines whether to run forward simulations with a fixed selection coefficient (f), ' \
+'a normally distributed selection coefficient with mean and standard deviation (n) or one drawn out of discrete bins (d)')
+def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, folder, mode):
     """Run evolution simulations.
     
     Arguments:
@@ -103,6 +106,8 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
         burnin = int(popsize)
     if gens is None:
         gens = int(popsize)+burnin
+    if sigma is None:
+        sigma = 0.0001
     
 
     # Run simulations
@@ -111,10 +116,12 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
         popsize=popsize,
         selcoef=selcoef,
         mutrate=mutrate,
+        sigma=sigma,
         chrmlen=chrmlen,
         burnin=burnin,
         gens=gens,
         jobs=jobs,
+        mode=mode
     )
     results = run_external(seeds=seeds, **params)
 
@@ -127,9 +134,14 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
     # Write to output folder (Folder name should be escsim_YYYY-MM-DD_rndomstr.out)
     # date = datetime.datetime.now().strftime('%Y-%m-%d')
     # rndstr = hashlib.md5(''.join(map(str, seeds)).encode()).hexdigest()[:8]
-    outfile = os.path.join(folder, f"escsim_N{int(popsize)}_U{mutrate}_s{selcoef}.out")
+    if mode == 'n':
+        escsim_file = os.path.join(folder, f"escsim_normal_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
+        wave_file = os.path.join(folder, f"wave_normal_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
+    else:
+        escsim_file = os.path.join(folder, f"escsim_fixed_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
+        wave_file = os.path.join(folder, f"wave_fixed_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
     
-    with open(outfile, 'w') as fout:
+    with open(escsim_file, 'w') as fout:
         # Write header
         header = ["sim_id", "seed", "popsize", "selcoef", "mutrate", "velocity", "profile"]
         fout.write("\t".join(header) + "\n")
@@ -147,8 +159,7 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
             ]
             fout.write("\t".join(line) + "\n")
     click.echo("Writing wave file")
-    out_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}.out")
-    with open(out_file, 'w') as fout:
+    with open(wave_file, 'w') as fout:
 
         header = ["time", "wave"]
         fout.write("\t".join(header) + "\n")
@@ -167,7 +178,8 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
     click.echo(f"[INFO] Parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}")
     click.echo(f"[INFO] chrmlen={chrmlen}, burnin={burnin}, gens={gens}")
     click.echo(f"[INFO] Number of simulations run: {len(results)}")
-    click.echo(f"[INFO] Results written to: {os.path.basename(outfile)}")
+    click.echo(f"[INFO] Results written to: {os.path.basename(escsim_file)}")
+    click.echo(f"[INFO] Wave file written to: {os.path.basename(wave_file)}")
     
 
     # Final message
@@ -193,7 +205,9 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
     # Get all files that have the form escsim_YYYY-MM-DD_*.out
     # sim_files = [f for f in os.listdir(input_folder) if re.match(r"escsim_\d{4}-\d{2}-\d{2}_.+\.out", f)]
     # Get all files that have the form escsim_N{N}_U{U}_s{s}.out
-    sim_files = [f for f in os.listdir(input_folder) if re.match(r"escsim_N\d+_U\d+(\.\d+)?_s\d+(\.\d+)?\.out", f)]
+    sim_files = [f for f in os.listdir(input_folder)
+                 if re.match(r"escsim_(?:normal|fixed)_N\d+_U\d+(?:\.\d+)?_s\d+(?:\.\d+)?\.out",
+                             f)]
     click.echo(f"[INFO] Found {len(sim_files)} simulation result file(s).")
     df_list = []
     for _, sim_file in enumerate(sim_files):

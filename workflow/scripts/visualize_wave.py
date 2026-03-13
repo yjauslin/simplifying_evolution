@@ -42,11 +42,22 @@ def compute_density_matrix(wave_matrix):
 @click.option('--output', '-o', default='results/escsim_figures',
               help='Output folder for wave plots summary file '
               '(default: results/escsim_figures)')
+@click.option('--mode', '-m', default = 'f',
+              help='Determines whether waves of a fixed selection coefficient (f), ' \
+              'waves of a normally distributed selection coefficient (n) or ' \
+              'waves of a selection coefficient sampled from discrete bins (d) ' \
+              'are visualized. ' \
+              'Make sure the mode is the same as used with escsim run')
 
-def summarize_waves(input_folder, output):
+def summarize_waves(input_folder, output, mode):
 
     input_path = Path(input_folder)
-    files = sorted(input_path.glob("wave_*.out"))
+
+    # pick the correct files corresponding to chosen mode
+    if mode == 'n':
+        files = sorted(input_path.glob("wave_normal_*.out"))
+    else:
+        files = sorted(input_path.glob("wave_fixed_*.out"))
 
     if len(files) == 0:
         click.echo("No wave files found.")
@@ -120,7 +131,11 @@ def summarize_waves(input_folder, output):
     plt.tight_layout()
 
     os.makedirs(output, exist_ok=True)
-    plt.savefig(f"{output}/wave_summary.pdf", bbox_inches="tight")
+
+    if mode == 'n':
+        plt.savefig(f"{output}/wave_normal_summary.pdf", bbox_inches="tight")
+    else:
+        plt.savefig(f"{output}/wave_fixed_summary.pdf", bbox_inches="tight")
 
     click.echo(f"[INFO] Saved summary plot to {output}")
 

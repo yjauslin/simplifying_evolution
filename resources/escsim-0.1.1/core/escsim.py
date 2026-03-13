@@ -128,10 +128,12 @@ def run_external(seeds, **kwargs):
     popssize = kwargs.get("popsize")
     selcoef = kwargs.get("selcoef")
     mutrate = kwargs.get("mutrate")
+    sigma = kwargs.get("sigma")
     chrmlen = kwargs.get("chrmlen")
     burnin = kwargs.get("burnin")
     gens = kwargs.get("gens")
     jobs = kwargs.get("jobs")
+    mode = kwargs.get("mode")
 
 
     # Double the gens if popsize is less or equal to 1000
@@ -148,7 +150,11 @@ def run_external(seeds, **kwargs):
     
     # Get absolute path to the slim script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    slim_script = os.path.join(script_dir, "escsim.slim")
+
+    if mode == "n":
+        slim_script = os.path.join(script_dir, "escsim_normal.slim")
+    else:
+        slim_script = os.path.join(script_dir, "escsim.slim")
 
     sim_ids = []
     cmd_list = []
@@ -159,6 +165,7 @@ def run_external(seeds, **kwargs):
             "-seed", str(s),
             "-d", f"popsize={popssize}",
             "-d", f"selcoef={selcoef}",
+            "-d", f"sigma={sigma}",
             "-d", f"mutrate={mutrate}",
             "-d", f"seqlen={chrmlen}",
             "-d", f"burnin={burnin}",
