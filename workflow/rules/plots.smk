@@ -1,17 +1,18 @@
 density_outputs = [
-    f"results/coalescent_densities/N{p['N']}_U{p['U']}_s{p['s']}_sigma{p['sigma']}.out"
+    f"results/coalescent_densities/{mode}_N{p['N']}_U{p['U']}_s{p['s']}_sigma{p['sigma']}.out"
+    for mode in MODES
     for p in PARAM_COMBINATIONS
 ]
 
 wave_outputs = [
-    f"results/escsim/wave_{mode}_N{p['N']}_U{p['U']}_s{p['s']}_sigma{p['sigma']}.out"
+    f"results/escsim/{mode}/wave_N{p['N']}_U{p['U']}_s{p['s']}_sigma{p['sigma']}.out"
     for mode in MODES
     for p in PARAM_COMBINATIONS
 ]
 
 rule visualize_wave:
     input:
-        lambda wc: [w for w in wave_outputs if f"wave_{wc.mode}_" in w]
+        wave_outputs
     output:
         "results/escsim_figures/wave_{mode}_summary.pdf"
     log:
@@ -21,7 +22,7 @@ rule visualize_wave:
     shell:
         """
         python workflow/scripts/visualize_wave.py \
-            --input_folder results/escsim \
+            --input_folder results/escsim/{wildcards.mode} \
             --mode {params.mode_flag} 2>&1 | tee {log}
         """
 

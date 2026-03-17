@@ -1,14 +1,17 @@
 rule calc_coalescent_density:
     input:
-        "results/escsim/escsim_normal_N{N}_U{U}_s{s}_sigma{sigma}.out"
+        "results/escsim/{mode}/escsim_N{N}_U{U}_s{s}_sigma{sigma}.out"
     output:
-        "results/coalescent_densities/N{N}_U{U}_s{s}_sigma{sigma}.out"
+        "results/coalescent_densities/{mode}_N{N}_U{U}_s{s}_sigma{sigma}.out"
     log:
-        "logs/coalescent_density/N{N}_U{U}_s{s}_sigma{sigma}.log"
+        "logs/coalescent_density/{mode}/N{N}_U{U}_s{s}_sigma{sigma}.log"
+    params:
+        mode_flag=lambda wc: MODES[wc.mode]
     shell:
         """
         python workflow/scripts/calc_coalescent_density.py \
             --input_folder {input} \
             --output results/coalescent_densities \
+            --mode {params.mode_flag} \
             {wildcards.N} {wildcards.s} {wildcards.U} {wildcards.sigma} 2>&1 | tee {log}
         """

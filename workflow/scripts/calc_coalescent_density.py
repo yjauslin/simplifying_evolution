@@ -21,8 +21,10 @@ import click
 @click.option('--output', '-o', default='results/coalescent_densities',
               help='Output folder for coalescent densities '
               '(default: results/coalescent_densities)')
+@click.option('--mode', '-m', default='f', help='Determines file names of result files, if run with fixed selection coefficient (f) files have the prefix fixed,' \
+'if run with normally distributed selection coefficient (n) files have the prefix normal.')
 
-def write_file(pop_size, sel_coef, mut_rate, sigma, input_folder, output):
+def write_file(pop_size, sel_coef, mut_rate, sigma, input_folder, output, mode):
     """
     Reads the results from the forward-simulation,
     calculates the coalescent densities and effective population size,
@@ -63,27 +65,32 @@ def write_file(pop_size, sel_coef, mut_rate, sigma, input_folder, output):
     else:
         os.makedirs(output, exist_ok=True)
         click.echo("[INFO] Created output folder.")
+    
+    if mode == 'n':
+        file_name = os.path.join(output, f"normal_N{pop_size}_U{mut_rate}_s{sel_coef}_sigma{sigma}.out")
+    else:
+        file_name = os.path.join(output, f"fixed_N{pop_size}_U{mut_rate}_s{sel_coef}_sigma{sigma}.out")
 
     # Write results to output file
-    with open(f"{output}/N{pop_size}_U{mut_rate}_s{sel_coef}_sigma{sigma}.out", "w") as f:
+    with open(file_name, "w") as f:
         header = ["popsize", "selcoef",
-                  "mutrate", "velocity",
-                  "rates", "effective_pop_size",
+                  "mutrate", "sigma",
+                  "velocity",
+                  "effective_pop_size",
                   "density", "time"]
         f.write("\t".join(header) + "\n")
 
-        str_coalescent_rates = ','.join(map(str, coalescent_rates))
         str_effective_pop_size = ','.join(map(str, effective_pop_size))
         str_coalescent_densities = ','.join(map(str, coalescent_densities))
         str_t = ','.join(map(str, time_points))
 
         line = [str(pop_size), str(sel_coef),
-                str(mut_rate), str(velocity),
-                str_coalescent_rates, str_effective_pop_size,
+                str(mut_rate), str(sigma),
+                str(velocity),
+                str_effective_pop_size,
                 str_coalescent_densities, str_t]
         f.write("\t".join(line) + "\n")
-        click.echo(f"[INFO] Results saved to "
-                   f"{output}/N{pop_size}_U{mut_rate}_s{sel_coef}.out")
+        click.echo(f"[INFO] Results saved to {file_name}")
 
 
 def read_params(df):

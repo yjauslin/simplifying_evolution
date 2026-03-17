@@ -134,12 +134,10 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
     # Write to output folder (Folder name should be escsim_YYYY-MM-DD_rndomstr.out)
     # date = datetime.datetime.now().strftime('%Y-%m-%d')
     # rndstr = hashlib.md5(''.join(map(str, seeds)).encode()).hexdigest()[:8]
-    if mode == 'n':
-        escsim_file = os.path.join(folder, f"escsim_normal_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
-        wave_file = os.path.join(folder, f"wave_normal_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
-    else:
-        escsim_file = os.path.join(folder, f"escsim_fixed_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
-        wave_file = os.path.join(folder, f"wave_fixed_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
+    
+    escsim_file = os.path.join(folder, f"escsim_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
+    wave_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
+
     
     with open(escsim_file, 'w') as fout:
         # Write header
@@ -175,9 +173,13 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
 
 
     # Print summary of parameters
-    click.echo(f"[INFO] Parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}")
+    if mode == "n":
+        click.echo(f"[INFO] Parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}, sigma={sigma}")
+    else:
+        click.echo(f"[INFO] Parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}")
     click.echo(f"[INFO] chrmlen={chrmlen}, burnin={burnin}, gens={gens}")
     click.echo(f"[INFO] Number of simulations run: {len(results)}")
+    click.echo(f"[INFO] Simulations were run in mode {mode}")
     click.echo(f"[INFO] Results written to: {os.path.basename(escsim_file)}")
     click.echo(f"[INFO] Wave file written to: {os.path.basename(wave_file)}")
     
