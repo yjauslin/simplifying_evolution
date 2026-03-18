@@ -39,7 +39,7 @@ rule escsim_summarize:
     shell:
         """
         escsim summarize \
-            -i results/escsim \
-            -o results/{wildcards.mode}/escsim_figures \
+            -i results/escsim/{wildcards.mode} \
+            -o results/escsim_figures/{wildcards.mode} \
             FIGURE_PDF 2>&1 | tee {log}
         """

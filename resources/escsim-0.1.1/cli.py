@@ -209,7 +209,7 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
     # Get all files that have the form escsim_N{N}_U{U}_s{s}.out
     num = r"\d+(?:\.\d+)?(?:e-?\d+)?"
     sim_files = [f for f in os.listdir(input_folder)
-                 if re.match(rf"escsim_(?:normal|fixed)_N\d+_U{num}_s{num}_sigma{num}\.out",
+                 if re.match(rf"escsim_N\d+_U{num}_s{num}_sigma{num}\.out",
                  f)]
     click.echo(f"[INFO] Found {len(sim_files)} simulation result file(s).")
     df_list = []
