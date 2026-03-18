@@ -54,10 +54,8 @@ def summarize_waves(input_folder, output, mode):
     input_path = Path(input_folder)
 
     # pick the correct files corresponding to chosen mode
-    if mode == 'n':
-        files = sorted(input_path.glob("wave_normal_*.out"))
-    else:
-        files = sorted(input_path.glob("wave_fixed_*.out"))
+    
+    files = sorted(input_path.glob("wave_*.out"))
 
     if len(files) == 0:
         click.echo("No wave files found.")
