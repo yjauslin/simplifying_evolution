@@ -19,6 +19,10 @@ rule visualize_wave:
         "logs/visualize_wave_{mode}.log"
     params:
         mode_flag=lambda wc: MODES[wc.mode]
+    resources:
+        mem_mb=5*1024,        
+        runtime=60,
+    threads: 4
     shell:
         """
         python workflow/scripts/visualize_wave.py \
@@ -34,6 +38,10 @@ rule visualize_densities:
         "results/escsim_figures/effective_population_size.pdf"
     log:
         "logs/visualize_densities.log"
+    resources:
+        mem_mb=5*1024,        
+        runtime=60,
+    threads: 4
     shell:
         """
         python workflow/scripts/visualize_densities.py 2>&1 | tee {log}

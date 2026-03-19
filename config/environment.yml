@@ -66,8 +66,6 @@ dependencies:
   - pybind11-abi=11=hc364b38_1
   - pycparser=2.22=pyh29332c3_1
   - pysocks=1.7.1=pyha55dd90_7
-  - python=3.13.12=hc97d973_100_cp313
-  - python_abi=3.13=8_cp313
   - readline=8.3=h853b02a_0
   - reproc=14.2.5.post0=hb9d3cd8_0
   - reproc-cpp=14.2.5.post0=h5888daf_0
@@ -100,7 +98,7 @@ dependencies:
     - cycler==0.12.1
     - docutils==0.22.4
     - dpath==2.2.0
-    - escsim==0.1.1
+    - -e /data/projects/p2026-0005_simplify_evolution/Yannick/simplifying_evolution/resources/escsim-0.1.1
     - fastjsonschema==2.21.2
     - fonttools==4.61.1
     - gitdb==4.0.12

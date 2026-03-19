@@ -7,6 +7,10 @@ rule calc_coalescent_density:
         "logs/coalescent_density/{mode}/N{N}_U{U}_s{s}_sigma{sigma}.log"
     params:
         mode_flag=lambda wc: MODES[wc.mode]
+    resources:
+        mem_mb=10*1024,        
+        runtime=60,
+    threads: 4
     shell:
         """
         python workflow/scripts/calc_coalescent_density.py \

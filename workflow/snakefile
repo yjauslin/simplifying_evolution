@@ -1,6 +1,6 @@
 configfile: "config/config.yml"
 
-conda: "config/environment.yml"
+conda: "/data/projects/p2026-0005_simplify_evolution/Yannick/simplifying_evolution/config/environment.yml"
 
 include: "params.smk"
 include: "rules/simulations.smk"
