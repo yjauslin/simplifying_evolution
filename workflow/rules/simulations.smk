@@ -19,6 +19,10 @@ rule escsim_run:
         CHRMLEN=config["constants"]["CHRMLEN"],
         BURNIN=config["constants"]["BURNIN"],
         mode_flag=lambda wc: MODES[wc.mode]
+    resources:
+        mem_mb=20*1024,        
+        runtime=60,
+    threads: 4
     shell:
         """
         escsim run \
@@ -36,6 +40,10 @@ rule escsim_summarize:
         "results/escsim_figures/{mode}/FIGURE_PDF_mean_velocity_summary.pdf"
     log:
         "logs/escsim_summarize_{mode}.log"
+    resources:
+        mem_mb=5*1024,        
+        runtime=60,
+    threads: 4
     shell:
         """
         escsim summarize \
