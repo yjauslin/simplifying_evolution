@@ -1,0 +1,29 @@
+cluster: >
+  mkdir -p logs/{rule} &&
+  sbatch
+   --partition={resources.partition}
+   --cpus-per-task={threads}
+   --mem={resources.mem_mb}
+   --job-name=smk-{rule}-{wildcards}
+   --output=logs/{rule}/{rule}-{wildcards}-%j.out
+   --error=logs/{rule}/{rule}-{wildcards}-%j.err
+   --time={resources.time}
+   --mail-user=yannick.jauslin@students.unibe.ch
+   --mail-type=begin,end
+   --parsable
+default-resources:
+  - partition=pcmpg_el8
+  - time=01:00:00
+  - mem_mb=1000
+restart-times: 0
+max-jobs-per-second: 5
+max-status-checks-per-second: 1
+local-cores: 1
+latency-wait: 60
+jobs: 30
+keep-going: True
+rerun-incomplete: True
+printshellcmds: True
+scheduler: greedy
+use-conda: True
+cluster-cancel: scancel
