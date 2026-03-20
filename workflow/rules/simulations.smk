@@ -21,7 +21,7 @@ rule escsim_run:
         mode_flag=lambda wc: MODES[wc.mode]
     resources:
         mem_mb=50*1024,        
-        runtime=60,
+        runtime=240,
     threads: 4
     shell:
         """
