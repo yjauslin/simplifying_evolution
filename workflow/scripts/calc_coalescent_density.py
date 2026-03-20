@@ -37,15 +37,8 @@ def write_file(pop_size, sel_coef, mut_rate, sigma, input_folder, output, mode):
     
     # read in the results file and extract the mutational burden profile and velocity
     results_file = pd.read_csv(file_path, sep="\t")
-    mut_burden_profile = np.array(results_file["profile"].iloc[0].split(","), dtype=float)
-    velocity = read_params(results_file)[3]
-
-    if velocity > 1:
-        click.echo("[INFO] Velocity > 1, setting to 1.")
-        velocity = 1
-    if velocity < 0:
-        click.echo("[INFO] Negative velocity, setting to 0.")
-        velocity = 0
+    mut_burden_profile = get_mean_profile(results_file)
+    velocity = get_mean_velocity(results_file)
 
     # set time points for which to calculate coalescent densities
     max_t = 5000
@@ -108,8 +101,55 @@ def read_params(df):
     pop_size = int(df["popsize"].iloc[0])
     mut_rate = df["mutrate"].iloc[0]
     sel_coef = df["selcoef"].iloc[0]
-    velocity = df["velocity"].iloc[0]
-    return pop_size, mut_rate, sel_coef, velocity
+    return pop_size, mut_rate, sel_coef
+
+def get_mean_velocity(df):
+    """
+    Calculates the mean velocity from a
+    DataFrame containing simulation results.
+    """
+    if "velocity" not in df.columns:
+        click.echo("[WARNING] 'velocity' column not found in results.")
+        return 0.0
+    
+    # Calculate the mean of all rows in the velocity column
+    mean_v = df["velocity"].mean()
+    
+    # Apply your existing bounds checks to the final mean
+    if mean_v > 1:
+        mean_v = 1.0
+    elif mean_v < 0:
+        mean_v = 0.0
+        
+    return mean_v
+
+def get_mean_profile(df):
+    """
+    Calculates the mean profile from 
+    a DataFrame containing simulation results.
+    """
+
+    all_profiles = []
+    max_len = 0
+    
+    # First pass: collect and find the longest profile
+    for profile_str in df["profile"]:
+        p = np.fromstring(profile_str, sep=",", dtype=float)
+        all_profiles.append(p)
+        if len(p) > max_len:
+            max_len = len(p)
+            
+    if not all_profiles:
+        return None
+        
+    # Second pass: pad ONLY the right side (the end) to match max_len
+    padded_profiles = [
+        np.pad(p, (0, max_len - len(p)), mode='constant', constant_values=0.0) 
+        for p in all_profiles
+    ]
+    
+    # Compute mean across the rows
+    return np.mean(padded_profiles, axis=0)
 
 def create_transition_matrix(mut_burden_profile, mut_rate, velocity):
     """ 
@@ -119,7 +159,8 @@ def create_transition_matrix(mut_burden_profile, mut_rate, velocity):
     velocity: Velocity of the wave.
     
     Returns: transition_matrix: A 2D numpy array representing the transition probabilities
-                                between states. """
+                                between states.
+    """
 
     # Get the number of states from the length of the mutational burden profile
     num_states = len(mut_burden_profile)

@@ -20,7 +20,7 @@ rule escsim_run:
         BURNIN=config["constants"]["BURNIN"],
         mode_flag=lambda wc: MODES[wc.mode]
     resources:
-        mem_mb=20*1024,        
+        mem_mb=50*1024,        
         runtime=60,
     threads: 4
     shell:
@@ -28,6 +28,7 @@ rule escsim_run:
         escsim run \
             -f results/escsim/{wildcards.mode} \
             -m {params.mode_flag} \
+            -w 100 \
             {wildcards.N} {wildcards.s} {wildcards.U} {wildcards.sigma} \
             {params.CHRMLEN} {params.BURNIN} 2>&1 | tee {log}
         """
