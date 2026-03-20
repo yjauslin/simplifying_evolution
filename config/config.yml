@@ -20,4 +20,4 @@ experiments:
 
 constants:
   CHRMLEN: 15000
-  BURNIN: 1
+  BURNIN: 10

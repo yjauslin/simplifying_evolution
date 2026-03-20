@@ -1,5 +1,5 @@
 executor: slurm
-jobs: 10
+jobs: 20
 
 # Global settings for every job
 default-resources:
