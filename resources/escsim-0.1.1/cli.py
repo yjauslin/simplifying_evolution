@@ -123,12 +123,10 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
         jobs=jobs,
         mode=mode
     )
-    results = run_external(seeds=seeds, **params)
 
-    # Test seeds
-    seeds_observed = [res["seed"] for res in results]
-    if set(seeds) != set(seeds_observed):
-        click.echo(f"[WARNING] Mismatch in seeds! Expected: {seeds}, Observed: {seeds_observed}")
+    # Initialize counters/trackers
+    seeds_observed = []
+    sim_count = 0
 
 
     # Write to output folder (Folder name should be escsim_YYYY-MM-DD_rndomstr.out)
@@ -147,20 +145,34 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
         f_esc.write("\t".join(header_esc) + "\n")
         f_wave.write("\t".join(header_wave) + "\n")
         
-    for res in run_external(seeds=seeds, **params):
-        # 1. Write metadata to escsim
-        profile_str = ",".join(map(str, res["profile"]))
-        f_esc.write(f"{res['sim_id']}\t{res['seed']}\t{res['popsize']}\t{profile_str}\n")
-        
-        # 2. Stream wave data line-by-line
-        # This prevents storing the entire wave history in a string before writing
-        for t, wave_row in zip(res["time"], res["wave"]):
-            wave_str = ",".join(map(str, wave_row))
-            f_wave.write(f"{t}\t{wave_str}\n")
-        
-        # 3. Explicitly clear local reference to large objects
-        del res
+        for res in run_external(seeds=seeds, folder=folder, **params):
+            sim_count += 1
+            seeds_observed.append(res["seed"])
+            # 1. Write metadata to escsim
+            profile_str = ",".join(map(str, res["profile"]))
+            
+            line_esc = [
+            str(res["sim_id"]),
+            str(res["seed"]),
+            str(res["popsize"]),
+            str(res["selcoef"]),
+            str(res["mutrate"]),
+            f"{res['velocity']:.6f}", # Format float for readability
+            profile_str
+        ]
 
+            f_esc.write("\t".join(line_esc) + "\n")
+        
+            # 2. Stream wave data line-by-line
+            # This prevents storing the entire wave history in a string before writing
+            with open(res["tmp_path"], 'r') as f_tmp:
+                f_wave.write(f_tmp.read())
+
+            os.remove(res["tmp_path"])
+            # 3. Explicitly clear local reference to large objects
+            del res
+    if set(seeds) != set(seeds_observed):
+        click.echo(f"[WARNING] Mismatch in seeds!")
 
     # Print summary of parameters
     if mode == "n":
@@ -168,7 +180,7 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
     else:
         click.echo(f"[INFO] Parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}")
     click.echo(f"[INFO] chrmlen={chrmlen}, burnin={burnin}, gens={gens}")
-    click.echo(f"[INFO] Number of simulations run: {len(results)}")
+    click.echo(f"[INFO] Number of simulations run: {sim_count}")
     click.echo(f"[INFO] Simulations were run in mode {mode}")
     click.echo(f"[INFO] Results written to: {os.path.basename(escsim_file)}")
     click.echo(f"[INFO] Wave file written to: {os.path.basename(wave_file)}")

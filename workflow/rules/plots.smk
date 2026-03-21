@@ -20,7 +20,7 @@ rule visualize_wave:
     params:
         mode_flag=lambda wc: MODES[wc.mode]
     resources:
-        mem_mb=100*1024,        
+        mem_mb=100*1000,        
         runtime=120,
     threads: 4
     shell:
@@ -39,9 +39,9 @@ rule visualize_densities:
     log:
         "logs/visualize_densities.log"
     resources:
-        mem_mb=5*1024,        
+        mem_mb=5*1000,        
         runtime=60,
-    threads: 4
+    threads: 1
     shell:
         """
         python workflow/scripts/visualize_densities.py 2>&1 | tee {log}

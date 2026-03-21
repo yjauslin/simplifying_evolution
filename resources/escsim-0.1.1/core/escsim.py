@@ -10,7 +10,7 @@ import sklearn.linear_model as lm
 from tqdm import tqdm
 
 
-def run_single_sim(cmd, sim_id):
+def run_single_sim(cmd, sim_id, folder):
     """Run a single simulation with the given command and simulation ID."""
     result = subprocess.run(cmd, capture_output=True, text=True)
     
@@ -44,7 +44,14 @@ def run_single_sim(cmd, sim_id):
     profile = np.trim_zeros(profile, trim="b")  # remove trailing zeros from back
     profile = profile/profile.sum()  # get frequency
 
-    del bin_edges, _, wave
+    # Write wave data to temp file, to keep main process memory-light
+    tmp_path = os.path.join(folder, f"sim_{sim_id}.tmp")
+    with open(tmp_path, 'w') as f_tmp:
+        for t, wave_row in zip(time, wave_raw):
+            wave_str = ",".join(map(str, wave_row))
+            f_tmp.write(f"{t}\t{wave_str}\n") 
+
+    del bin_edges, _, wave, wave_raw
 
     return {
         "sim_id": sim_id,
@@ -54,8 +61,7 @@ def run_single_sim(cmd, sim_id):
         "mutrate": mutrate,
         "velocity": velocity,
         "profile": profile,
-        "wave": wave_raw,
-        "time": time
+        "tmp_path": tmp_path
     }
 
 
@@ -115,7 +121,7 @@ def parse_result(stderr: str):
     return time, flat_wave
 
 
-def run_external(seeds, **kwargs):
+def run_external(seeds, folder, **kwargs):
     """Run external command in parallele with different seeds and return result."""
     # Check for required parameters
     if not seeds or not isinstance(seeds, list):
@@ -177,11 +183,11 @@ def run_external(seeds, **kwargs):
 
 
     with ProcessPoolExecutor(max_workers=jobs) as executor:
-        futures = {executor.submit(run_single_sim, cmd, sim_id): sim_id 
+        futures = {executor.submit(run_single_sim, cmd, sim_id, folder): sim_id 
                    for cmd, sim_id in zip(cmd_list, sim_ids)}
         
         for future in tqdm(as_completed(futures), total=len(futures), desc="Running simulations"):
-            results = future.result
+            result = future.result()
             yield result
             del result
 

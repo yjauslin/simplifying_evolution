@@ -8,8 +8,8 @@ rule calc_coalescent_density:
     params:
         mode_flag=lambda wc: MODES[wc.mode]
     resources:
-        mem_mb=10*1024,        
-        runtime=120,
+        mem_mb=5*1000,        
+        runtime=60,
     threads: 4
     shell:
         """
