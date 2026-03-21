@@ -9,7 +9,7 @@ rule calc_coalescent_density:
         mode_flag=lambda wc: MODES[wc.mode]
     resources:
         mem_mb=10*1024,        
-        runtime=60,
+        runtime=120,
     threads: 4
     shell:
         """

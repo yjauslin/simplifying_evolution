@@ -139,37 +139,27 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
     wave_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
 
     
-    with open(escsim_file, 'w') as fout:
+    with open(escsim_file, 'w') as f_esc, open(wave_file, 'w') as f_wave:
         # Write header
-        header = ["sim_id", "seed", "popsize", "selcoef", "mutrate", "velocity", "profile"]
-        fout.write("\t".join(header) + "\n")
+        header_esc = ["sim_id", "seed", "popsize", "selcoef", "mutrate", "velocity", "profile"]
+        header_wave = ["time", "wave"]
         
-        for res in results:
-            profile_str = ",".join(map(str, res["profile"]))
-            line = [
-                str(res["sim_id"]),
-                str(res["seed"]),
-                str(res["popsize"]),
-                str(res["selcoef"]),
-                str(res["mutrate"]),
-                f"{res['velocity']:.6f}",
-                profile_str
-            ]
-            fout.write("\t".join(line) + "\n")
-    click.echo("Writing wave file")
-    with open(wave_file, 'w') as fout:
-
-        header = ["time", "wave"]
-        fout.write("\t".join(header) + "\n")
+        f_esc.write("\t".join(header_esc) + "\n")
+        f_wave.write("\t".join(header_wave) + "\n")
         
-        for res in results:
-            wave = res["wave"]
-            time = res["time"]
+    for res in run_external(seeds=seeds, **params):
+        # 1. Write metadata to escsim
+        profile_str = ",".join(map(str, res["profile"]))
+        f_esc.write(f"{res['sim_id']}\t{res['seed']}\t{res['popsize']}\t{profile_str}\n")
         
-            for i, row in enumerate(wave):
-                wave_str = ",".join(map(str, row))
-                line = [str(time[i]), wave_str]
-                fout.write("\t".join(line) + "\n")
+        # 2. Stream wave data line-by-line
+        # This prevents storing the entire wave history in a string before writing
+        for t, wave_row in zip(res["time"], res["wave"]):
+            wave_str = ",".join(map(str, wave_row))
+            f_wave.write(f"{t}\t{wave_str}\n")
+        
+        # 3. Explicitly clear local reference to large objects
+        del res
 
 
     # Print summary of parameters

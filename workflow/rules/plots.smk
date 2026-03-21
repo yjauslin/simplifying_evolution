@@ -20,8 +20,8 @@ rule visualize_wave:
     params:
         mode_flag=lambda wc: MODES[wc.mode]
     resources:
-        mem_mb=50*1024,        
-        runtime=60,
+        mem_mb=100*1024,        
+        runtime=120,
     threads: 4
     shell:
         """

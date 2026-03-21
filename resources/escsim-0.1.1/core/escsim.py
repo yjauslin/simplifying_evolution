@@ -176,15 +176,14 @@ def run_external(seeds, **kwargs):
         sim_ids.append(sid)
 
 
-    results = []
     with ProcessPoolExecutor(max_workers=jobs) as executor:
         futures = {executor.submit(run_single_sim, cmd, sim_id): sim_id 
                    for cmd, sim_id in zip(cmd_list, sim_ids)}
         
         for future in tqdm(as_completed(futures), total=len(futures), desc="Running simulations"):
-            results.append(future.result())
-
-    return results
+            results = future.result
+            yield result
+            del result
 
 
 def create_seeds(n: int, base_value: str, max_value: int = 2**32 - 1):
