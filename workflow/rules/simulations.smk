@@ -22,7 +22,7 @@ rule escsim_run:
     threads: 16
     shadow: "minimal"
     resources:
-        mem_mb=150*1000,        
+        mem_mb=210*1000,        
         runtime=180
     shell:
         """

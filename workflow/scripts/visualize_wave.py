@@ -15,7 +15,7 @@ def load_multi_wave_file(filename):
     last_t = -1
 
     with open(filename) as f:
-        next(f)  # skip the very first header
+        next(f)  # skip the header
         for line in f:
             parts = line.rstrip().split("\t")
             if len(parts) < 2: continue
@@ -23,9 +23,8 @@ def load_multi_wave_file(filename):
             t = int(parts[0])
             wave_data = np.fromstring(parts[1], sep=",", dtype=int)
 
-            # If time resets, yield the completed matrix
             if t < last_t and current_times:
-                yield np.array(current_times), current_waves
+                yield np.array(current_times), np.array(current_waves)
                 current_times, current_waves = [], []
             
             current_times.append(t)
@@ -33,7 +32,7 @@ def load_multi_wave_file(filename):
             last_t = t
             
         if current_times:
-            yield np.array(current_times), current_waves
+            yield np.array(current_times), np.array(current_waves)
 
 def compute_density_matrix(wave_matrix):
     max_load = wave_matrix.max()
@@ -42,6 +41,14 @@ def compute_density_matrix(wave_matrix):
     for i in range(T):
         density[i] = np.bincount(wave_matrix[i], minlength=max_load + 1)
     return density
+
+def create_new_page(file_name, cmap):
+    """Helper to initialize a new figure page."""
+    fig = plt.figure(figsize=(18, 12))
+    fig.suptitle(f"File: {file_name}", fontsize=16, fontweight='bold')
+    gs = plt.GridSpec(3, 5, width_ratios=[1, 1, 1, 1, 0.05])
+    cax = fig.add_subplot(gs[:, -1]) 
+    return fig, gs, cax
 
 @click.command()
 @click.option('--input_folder', '-i', default='results/escsim')
@@ -64,31 +71,24 @@ def summarize_waves(input_folder, output, mode):
 
     with PdfPages(pdf_path) as pdf:
         for file in files:
-            # Load all matrices for this specific file
-            matrices = list(load_multi_wave_file(file))
-            
-            # Start first page for this file
             fig = None
             plot_count = 0
-
-            for i, (times, waves) in enumerate(matrices):
-                # Start a new page if 12 plots reached OR first matrix of a file
+            
+            # Iterate directly over the generator (one matrix at a time)
+            for i, (times, wave_matrix) in enumerate(load_multi_wave_file(file)):
+                
+                # If we hit 12 plots or it's the very first matrix of a file
                 if plot_count % 12 == 0:
                     if fig:
+                        # Save and Close previous page to free memory
                         pdf.savefig(fig, bbox_inches="tight")
                         plt.close(fig)
                     
-                    fig = plt.figure(figsize=(18, 12))
-                    # Title only on the first page of the file, or every page? 
-                    # Prompt says: "start a new page for the new file and write a title again"
-                    fig.suptitle(f"File: {file.name}", fontsize=16, fontweight='bold')
-                    gs = plt.GridSpec(3, 5, width_ratios=[1, 1, 1, 1, 0.05])
-                    cax = fig.add_subplot(gs[:, -1]) # Global colorbar for this page
-                
+                    fig, gs, cax = create_new_page(file.name, cmap)
+
                 row, col = divmod(plot_count % 12, 4)
                 ax = fig.add_subplot(gs[row, col])
                 
-                wave_matrix = np.vstack(waves)
                 density = compute_density_matrix(wave_matrix)
                 
                 im = ax.imshow(
@@ -99,17 +99,19 @@ def summarize_waves(input_folder, output, mode):
 
                 ax.set_title(f"Matrix {i+1}")
                 ax.set_xlabel("Time")
-                # Label y-axis only for the leftmost column
                 if col == 0:
                     ax.set_ylabel("Mutational load")
 
-                # Add/Update colorbar for the current page based on the latest plot
-                fig.colorbar(im, cax=cax, label="Individuals (log scale)")
+                # Always update colorbar with the most recent 'im' scale
+                plt.colorbar(im, cax=cax, label="Individuals (log scale)")
                 
                 plot_count += 1
+                # Explicitly delete local large arrays to assist GC
+                del wave_matrix
+                del density
 
+            # Save and Close the last page of the current file
             if fig:
-                plt.tight_layout(rect=[0, 0, 0.95, 0.95])
                 pdf.savefig(fig, bbox_inches="tight")
                 plt.close(fig)
 

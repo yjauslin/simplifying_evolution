@@ -234,11 +234,12 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
     sns.set(style="ticks", context="paper")
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    velocity_summary = df.groupby(["popsize", "selcoef", "mutrate"])['velocity'].agg(['mean', 'std', 'count']).reset_index()
+    velocity_summary = df.groupby(["popsize", "selcoef", "mutrate", "sigma"])['velocity'].agg(['mean', 'std', 'count']).reset_index()
     velocity_summary["Ns"] = velocity_summary['popsize'] * velocity_summary['selcoef']
     velocity_summary["lineid"] = velocity_summary.apply(lambda row: f"$N={format_sci(row['popsize'])}$, $U_d={format_sci(row['mutrate'])}$", axis=1)
     velocity_summary["Popsize $N$"] = velocity_summary['popsize'].apply(lambda x: format_sci(x))
     velocity_summary["Mutation rate $U_d$"] = velocity_summary['mutrate'].apply(lambda x: format_sci(x))
+    velocity_summary["Sigma"] = velocity_summary['sigma'].apply(lambda x: format_sci(x))
 
 
     # As the x scale will be log, make the zero to be on the xlimits as if it weren't zero
@@ -319,12 +320,12 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
 
     ## Figure logic of individual parameter combinations
     # Loop through the unique parameter combinations
-    param_cols = ['popsize', 'selcoef', 'mutrate']
-    df_sorted = df.sort_values(by=['popsize', 'mutrate', 'selcoef'], ascending=[False, False, False])
+    param_cols = ['popsize', 'selcoef', 'mutrate', 'sigma']
+    df_sorted = df.sort_values(by=['popsize', 'mutrate', 'selcoef', 'sigma'], ascending=[False, False, False, False])
     grouped = df_sorted.groupby(param_cols, sort=False)
     for params, group in grouped:
         popsize, selcoef, mutrate = params
-        click.echo(f"[INFO] Plotting for parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}")
+        click.echo(f"[INFO] Plotting for parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}, sigma={sigma}")
 
         # Calculate phi
         phi = calc_phi(popsize, selcoef, mutrate)
@@ -435,7 +436,7 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
 
 
         fig.suptitle(
-            f"\n$N={format_sci(popsize)}$, $s={format_sci(selcoef)}$, $U_d={format_sci(mutrate)}$, $\\phi={format_sci(phi)}$"+
+            f"\n$N={format_sci(popsize)}$, $s={format_sci(selcoef)}$, $U_d={format_sci(mutrate)}$, $sigma={format_sci(sigma)}$,  $\\phi={format_sci(phi)}$"+
             f"\nMean Velocity={np.mean(group['velocity']):.4f} ± {np.std(group['velocity']):.4f}"+
             f", $n={len(group)}$ simulations"
         )
