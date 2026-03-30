@@ -1,3 +1,23 @@
+import math
+
+def get_mem_mb(wildcards):
+    # wildcards.N is a string, convert to int
+    n_val = int(wildcards.N)
+    
+    if n_val >= 10000:
+        return 210 * 1000  # 210 GB for large populations
+    else:
+        return 100 * 1000  # 100 GB default
+
+def get_num_sim(wildcards):
+    N = float(wildcards.N)
+    s = float(wildcards.s)
+    U = float(wildcards.U)
+    
+    phi = N * s * math.exp(-U / s)
+    
+    return 100 if phi > 1 else 500
+
 MODES = {
     "fixed": "f",
     "normal": "n"
@@ -18,18 +38,19 @@ rule escsim_run:
     params:
         CHRMLEN=config["constants"]["CHRMLEN"],
         BURNIN=config["constants"]["BURNIN"],
-        mode_flag=lambda wc: MODES[wc.mode]
+        mode_flag=lambda wc: MODES[wc.mode],
+        w_val=get_num_sim
     threads: 16
     shadow: "minimal"
     resources:
-        mem_mb=210*1000,        
+        mem_mb=get_mem_mb,        
         runtime=180
     shell:
         """
         escsim run \
             -f results/escsim/{wildcards.mode} \
             -m {params.mode_flag} \
-            -w 100 \
+            -w {params.w_val} \
             -j 16 \
             {wildcards.N} {wildcards.s} {wildcards.U} {wildcards.sigma} \
             {params.CHRMLEN} {params.BURNIN} 2>&1 | tee {log}
