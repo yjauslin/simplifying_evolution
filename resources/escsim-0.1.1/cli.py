@@ -139,7 +139,7 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
     
     with open(escsim_file, 'w') as f_esc, open(wave_file, 'w') as f_wave:
         # Write header
-        header_esc = ["sim_id", "seed", "popsize", "selcoef", "mutrate", "velocity", "profile"]
+        header_esc = ["sim_id", "seed", "popsize", "selcoef", "sigma", "mutrate", "velocity", "profile"]
         header_wave = ["time", "wave"]
         
         f_esc.write("\t".join(header_esc) + "\n")
@@ -156,6 +156,7 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
             str(res["seed"]),
             str(res["popsize"]),
             str(res["selcoef"]),
+            str(res["sigma"]),
             str(res["mutrate"]),
             f"{res['velocity']:.6f}", # Format float for readability
             profile_str
@@ -324,7 +325,7 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
     df_sorted = df.sort_values(by=['popsize', 'mutrate', 'selcoef', 'sigma'], ascending=[False, False, False, False])
     grouped = df_sorted.groupby(param_cols, sort=False)
     for params, group in grouped:
-        popsize, selcoef, mutrate = params
+        popsize, selcoef, mutrate, sigma = params
         click.echo(f"[INFO] Plotting for parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}, sigma={sigma}")
 
         # Calculate phi

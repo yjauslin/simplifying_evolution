@@ -58,6 +58,7 @@ def run_single_sim(cmd, sim_id, folder):
         "seed": args.get("seed"),
         "popsize": args.get("popsize"),
         "selcoef": args.get("selcoef"),
+        "sigma": args.get("sigma"),
         "mutrate": mutrate,
         "velocity": velocity,
         "profile": profile,
@@ -76,8 +77,8 @@ def extract_args(args):
         elif arg == "-d":
             key_value = next(arg_iter)
             key, value = key_value.split("=")
-            if key in ["popsize", "selcoef", "mutrate", "seqlen", "burnin", "ending"]:
-                if key in ["popsize", "selcoef", "mutrate"]:
+            if key in ["popsize", "selcoef", "sigma", "mutrate", "seqlen", "burnin", "ending"]:
+                if key in ["popsize", "selcoef", "sigma", "mutrate"]:
                     params[key] = float(value)
                 else:
                     params[key] = int(value)
