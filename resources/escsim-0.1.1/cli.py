@@ -75,7 +75,8 @@ def main():
 @click.option('--folder', '-f', default='tmp/results', help='Output folder for simulation results; will use existing simulations if found (default: tmp/results)')
 @click.option('--mode', '-m', default='f', help='Determines whether to run forward simulations with a fixed selection coefficient (f), ' \
 'a normally distributed selection coefficient with mean and standard deviation (n) or one drawn out of discrete bins (d)')
-def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, folder, mode):
+@click.option('--tree', '-t', is_flag=True, help='Whether to write the tree file for each simulation (default: False)')
+def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, folder, mode, tree):
     """Run evolution simulations.
     
     Arguments:
@@ -109,7 +110,8 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
     if sigma is None:
         sigma = 0.0001
     
-
+    # Convert Python True/False to SLiM T/F
+    slim_tree_value = "T" if tree else "F"
     # Run simulations
     seeds = create_seeds(n=workers, base_value=str(timeit.default_timer()))
     params = dict(
@@ -121,7 +123,8 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
         burnin=burnin,
         gens=gens,
         jobs=jobs,
-        mode=mode
+        mode=mode,
+        tree=slim_tree_value
     )
 
     # Initialize counters/trackers
@@ -133,6 +136,14 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
     # date = datetime.datetime.now().strftime('%Y-%m-%d')
     # rndstr = hashlib.md5(''.join(map(str, seeds)).encode()).hexdigest()[:8]
     
+    if tree:
+        click.echo("[INFO] Tree mode enabled. SLiM will output .trees files directly.")
+        for res in run_external(seeds=seeds, folder=folder, **params):
+            click.echo(f"[INFO] Simulation {res['sim_id']} (Seed: {res['seed']}) complete. Tree saved.")
+        
+        click.echo(f"[INFO] All tree simulations finished. Total: {sim_count}")
+        return # Exit the function early
+
     escsim_file = os.path.join(folder, f"escsim_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
     wave_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
 

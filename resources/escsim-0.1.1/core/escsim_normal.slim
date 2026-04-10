@@ -15,6 +15,12 @@ initialize() {
 		defineConstant("ending", "50000");
 	
 	}
+	
+	// Set default if not provided via command line
+    if (!exists("WRITE_TREE")) {
+        defineConstant("WRITE_TREE", F);
+    }
+
 	// Rewrite constants
 	defineConstant("POPSIZE", asInteger(popsize));
 	defineConstant("SELCOEF", -abs(asFloat(selcoef)));
@@ -23,11 +29,17 @@ initialize() {
 	defineConstant("SEQLEN", asInteger(seqlen));
 	defineConstant("BURNIN", asInteger(burnin));
 	defineConstant("ENDING", asInteger(ending));
-	
-	
-	
+
+	fn = "normal_N" + POPSIZE + "_U" + mutrate + "_s" + SELCOEF + "_sigma" + SIGMA + ".trees";
+	defineConstant("FILENAME", fn);
+
+	// Enable Tree Sequence Recording if requested
+	if (WRITE_TREE) {
+        initializeTreeSeq();
+    }
+
 	// Simulation init
-	initializeSex();
+	// initializeSex();
 	initializeMutationType("m1", 1.0, "n", SELCOEF, SIGMA);
 	initializeGenomicElementType("g1", m1, 1.0);
 	m1.convertToSubstitution = T;  // will count substitutions
@@ -58,9 +70,9 @@ initialize() {
 
 // Mutational burden
 1: late() {
-	if (sim.cycle >= BURNIN) {
+	if (!WRITE_TREE && sim.cycle >= BURNIN) {
 		// Get mut burden
-		burden = p1.individuals.haplosomesForChromosomes(1).countOfMutationsOfType(m1);
+		burden = p1.genomes.countOfMutationsOfType(m1);
 		min = min(burden);	
 		tab = tabulate(burden)[min:max(burden)];
 		newLine = paste(sim.cycle, min+sim.substitutions.size(), paste(tab, sep=","), sep=":");
@@ -71,6 +83,11 @@ initialize() {
 
 1: late() {
 	if (sim.cycle >= ENDING) {
+		if (WRITE_TREE){
+            // Saves the tree sequence to a file
+            sim.treeSeqOutput(FILENAME);
+            catn("Tree file saved as: " + FILENAME);
+        }
 		sim.simulationFinished();
 	}	
 }

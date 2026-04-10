@@ -18,10 +18,26 @@ def run_single_sim(cmd, sim_id, folder):
     args = extract_args(result.args)
     mutrate = args.get("mutrate")
 
+    # Check if tree mode was ON
+    is_tree_mode = args.get("WRITE_TREE") == "T"
 
     if result.returncode != 0:
         print(f"[ERROR] Simulation {sim_id} failed with return code {result.returncode}.", file=sys.stderr)
         print(f"[ERROR] stderr: {result.stderr}", file=sys.stderr)
+
+    if is_tree_mode:
+        return {
+            "sim_id": sim_id,
+            "seed": args.get("seed"),
+            "is_tree": True,
+            "tmp_path": None,
+            "popsize": args.get("popsize"),
+            "selcoef": args.get("selcoef"),
+            "sigma": args.get("sigma"),
+            "mutrate": args.get("mutrate"),
+            "velocity": 0.0,
+            "profile": [0]
+        }
         
     time, wave = parse_result(result.stderr)
 
@@ -141,6 +157,7 @@ def run_external(seeds, folder, **kwargs):
     gens = kwargs.get("gens")
     jobs = kwargs.get("jobs")
     mode = kwargs.get("mode")
+    tree = kwargs.get("tree")
 
 
     # Double the gens if popsize is less or equal to 1000
@@ -163,6 +180,7 @@ def run_external(seeds, folder, **kwargs):
     else:
         slim_script = os.path.join(script_dir, "escsim.slim")
 
+
     sim_ids = []
     cmd_list = []
     for sid, s in enumerate(seeds):
@@ -177,6 +195,7 @@ def run_external(seeds, folder, **kwargs):
             "-d", f"seqlen={chrmlen}",
             "-d", f"burnin={burnin}",
             "-d", f"ending={gens}",
+            "-d", f"WRITE_TREE={tree}",
             slim_script
         ]
         cmd_list.append(cmd)
