@@ -30,7 +30,7 @@ initialize() {
 	defineConstant("BURNIN", asInteger(burnin));
 	defineConstant("ENDING", asInteger(ending));
 
-	fn = "normal_N" + POPSIZE + "_U" + mutrate + "_s" + SELCOEF + "_sigma" + SIGMA + ".trees";
+	fn = "normal_N" + POPSIZE + "_U" + mutrate + "_s" + abs(SELCOEF) + "_sigma" + SIGMA + ".trees";
 	defineConstant("FILENAME", fn);
 
 	// Enable Tree Sequence Recording if requested
@@ -70,14 +70,16 @@ initialize() {
 
 // Mutational burden
 1: late() {
-	if (!WRITE_TREE && sim.cycle >= BURNIN) {
-		// Get mut burden
-		burden = p1.genomes.countOfMutationsOfType(m1);
-		min = min(burden);	
-		tab = tabulate(burden)[min:max(burden)];
-		newLine = paste(sim.cycle, min+sim.substitutions.size(), paste(tab, sep=","), sep=":");
+	if (!WRITE_TREE) {
+		if (sim.cycle >= BURNIN) {
+			// Get mut burden
+			burden = p1.genomes.countOfMutationsOfType(m1);
+			min = min(burden);	
+			tab = tabulate(burden)[min:max(burden)];
+			newLine = paste(sim.cycle, min+sim.substitutions.size(), paste(tab, sep=","), sep=":");
 	
-		catn(newLine, error=T);
+			catn(newLine, error=T);
+		}
 	}
 }
 
@@ -85,7 +87,7 @@ initialize() {
 	if (sim.cycle >= ENDING) {
 		if (WRITE_TREE){
             // Saves the tree sequence to a file
-            sim.treeSeqOutput(FILENAME);
+            sim.treeSeqOutput("tmp" + "/" + "results" + "/" + FILENAME);
             catn("Tree file saved as: " + FILENAME);
         }
 		sim.simulationFinished();

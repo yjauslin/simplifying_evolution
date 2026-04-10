@@ -36,7 +36,7 @@ def run_single_sim(cmd, sim_id, folder):
             "sigma": args.get("sigma"),
             "mutrate": args.get("mutrate"),
             "velocity": 0.0,
-            "profile": [0]
+            "profile": np.array([1.0])
         }
         
     time, wave = parse_result(result.stderr)
@@ -93,7 +93,9 @@ def extract_args(args):
         elif arg == "-d":
             key_value = next(arg_iter)
             key, value = key_value.split("=")
-            if key in ["popsize", "selcoef", "sigma", "mutrate", "seqlen", "burnin", "ending"]:
+            if key == "WRITE_TREE":
+                    params["WRITE_TREE"] = value
+            elif key in ["popsize", "selcoef", "sigma", "mutrate", "seqlen", "burnin", "ending"]:
                 if key in ["popsize", "selcoef", "sigma", "mutrate"]:
                     params[key] = float(value)
                 else:
