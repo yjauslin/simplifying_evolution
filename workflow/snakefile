@@ -12,8 +12,7 @@ rule all:
     input:
         escsim_outputs,
         density_outputs,
-        "results/escsim_figures/wave_fixed_summary.pdf",
-        "results/escsim_figures/wave_normal_summary.pdf",
+        wave_outputs,
         "results/escsim_figures/fixed/FIGURE_PDF.pdf",
         "results/escsim_figures/fixed/FIGURE_PDF_mean_velocity_summary.pdf",
         "results/escsim_figures/normal/FIGURE_PDF.pdf",

@@ -51,69 +51,62 @@ def create_new_page(file_name, cmap):
     return fig, gs, cax
 
 @click.command()
-@click.option('--input_folder', '-i', default='results/escsim')
-@click.option('--output', '-o', default='results/escsim_figures')
-@click.option('--mode', '-m', default='f')
-def summarize_waves(input_folder, output, mode):
-    input_path = Path(input_folder)
-    files = sorted(input_path.glob("wave_*.out"))
-
-    if not files:
-        click.echo("No wave files found.")
-        return
-
-    os.makedirs(output, exist_ok=True)
-    out_name = "wave_normal_summary.pdf" if mode == 'n' else "wave_fixed_summary.pdf"
-    pdf_path = Path(output) / out_name
+@click.argument('input_file', type=click.Path(exists=True))
+@click.option('--output_folder', '-o', default='results/escsim_figures', help="Directory to save the PDF")
+@click.option('--mode', '-m', default='f', help="Mode 'n' for normal, 'f' for fixed")
+def summarize_waves(input_file, output_folder, mode):
+    file_path = Path(input_file)
+    os.makedirs(output_folder, exist_ok=True)
+    
+    # Generate output filename based on the input filename and mode
+    out_prefix = "wave_normal" if mode == 'n' else "wave_fixed"
+    out_name = f"{out_prefix}_{file_path.stem}.pdf"
+    pdf_path = Path(output_folder) / out_name
 
     cmap = plt.cm.inferno
     cmap.set_under("white")
 
     with PdfPages(pdf_path) as pdf:
-        for file in files:
-            fig = None
-            plot_count = 0
+        fig = None
+        plot_count = 0
+        
+        # Process the single specified file
+        for i, (times, wave_matrix) in enumerate(load_multi_wave_file(file_path)):
             
-            # Iterate directly over the generator (one matrix at a time)
-            for i, (times, wave_matrix) in enumerate(load_multi_wave_file(file)):
+            # If we hit 12 plots or it's the very first matrix
+            if plot_count % 12 == 0:
+                if fig:
+                    pdf.savefig(fig, bbox_inches="tight")
+                    plt.close(fig)
                 
-                # If we hit 12 plots or it's the very first matrix of a file
-                if plot_count % 12 == 0:
-                    if fig:
-                        # Save and Close previous page to free memory
-                        pdf.savefig(fig, bbox_inches="tight")
-                        plt.close(fig)
-                    
-                    fig, gs, cax = create_new_page(file.name, cmap)
+                fig, gs, cax = create_new_page(file_path.name, cmap)
 
-                row, col = divmod(plot_count % 12, 4)
-                ax = fig.add_subplot(gs[row, col])
-                
-                density = compute_density_matrix(wave_matrix)
-                
-                im = ax.imshow(
-                    density.T, aspect="auto", origin="lower",
-                    extent=[times.min(), times.max(), 0, density.shape[1]],
-                    norm=LogNorm(vmin=1, vmax=max(2, density.max())), cmap=cmap
-                )
+            row, col = divmod(plot_count % 12, 4)
+            ax = fig.add_subplot(gs[row, col])
+            
+            density = compute_density_matrix(wave_matrix)
+            
+            im = ax.imshow(
+                density.T, aspect="auto", origin="lower",
+                extent=[times.min(), times.max(), 0, density.shape[1]],
+                norm=LogNorm(vmin=1, vmax=max(2, density.max())), cmap=cmap
+            )
 
-                ax.set_title(f"Matrix {i+1}")
-                ax.set_xlabel("Time")
-                if col == 0:
-                    ax.set_ylabel("Mutational load")
+            ax.set_title(f"Matrix {i+1}")
+            ax.set_xlabel("Time")
+            if col == 0:
+                ax.set_ylabel("Mutational load")
 
-                # Always update colorbar with the most recent 'im' scale
-                plt.colorbar(im, cax=cax, label="Individuals (log scale)")
-                
-                plot_count += 1
-                # Explicitly delete local large arrays to assist GC
-                del wave_matrix
-                del density
+            plt.colorbar(im, cax=cax, label="Individuals (log scale)")
+            
+            plot_count += 1
+            del wave_matrix
+            del density
 
-            # Save and Close the last page of the current file
-            if fig:
-                pdf.savefig(fig, bbox_inches="tight")
-                plt.close(fig)
+        # Save and Close the last page
+        if fig:
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
 
     click.echo(f"[INFO] Multi-page PDF saved to {pdf_path}")
 

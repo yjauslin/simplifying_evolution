@@ -32,7 +32,7 @@ escsim_outputs = [
 rule escsim_run:
     output:
         sim="results/escsim/{mode}/escsim_N{N}_U{U}_s{s}_sigma{sigma}.out",
-        wave="results/escsim/{mode}/wave_N{N}_U{U}_s{s}_sigma{sigma}.out"
+        wave=temp("results/escsim/{mode}/wave_N{N}_U{U}_s{s}_sigma{sigma}.out")
     log:
         "logs/escsim/{mode}/escsim_N{N}_U{U}_s{s}_sigma{sigma}.log"
     params:

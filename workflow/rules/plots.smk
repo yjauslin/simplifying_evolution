@@ -4,30 +4,36 @@ density_outputs = [
     for p in PARAM_COMBINATIONS
 ]
 
+def get_wave_input(wildcards):
+    return f"results/escsim/{wildcards.mode}/wave_N{wildcards.N}_U{wildcards.U}_s{wildcards.s}_sigma{wildcards.sigma}.out"
+
 wave_outputs = [
-    f"results/escsim/{mode}/wave_N{p['N']}_U{p['U']}_s{p['s']}_sigma{p['sigma']}.out"
+    f"results/escsim_figures/{mode}/wave_summary_N{p['N']}_U{p['U']}_s{p['s']}_sigma{p['sigma']}.pdf"
     for mode in MODES
     for p in PARAM_COMBINATIONS
 ]
 
 rule visualize_wave:
     input:
-        wave_outputs
+        # Marking the input as temporary here ensures that once this specific 
+        # rule finishes, the massive .out file is deleted.
+        wave_file = temp(get_wave_input)
     output:
-        "results/escsim_figures/wave_{mode}_summary.pdf"
+        pdf = "results/escsim_figures/{mode}/wave_summary_N{N}_U{U}_s{s}_sigma{sigma}.pdf"
     log:
-        "logs/visualize_wave_{mode}.log"
+        "logs/visualize_wave_{mode}_N{N}_U{U}_s{s}_sigma{sigma}.log"
     params:
-        mode_flag=lambda wc: MODES[wc.mode]
+        mode_flag = lambda wc: wc.mode[0] # e.g., 'f' or 'n'
     resources:
-        mem_mb=150*1000,        
-        runtime=120,
-    threads: 4
+        mem_mb = 12 * 1000,
+        runtime = 20,
+    threads: 1
     shell:
         """
         python workflow/scripts/visualize_wave.py \
-            --input_folder results/escsim/{wildcards.mode} \
-            --mode {params.mode_flag} 2>&1 | tee {log}
+            {input.wave_file} \
+            --output_folder results/escsim_figures/{wildcards.mode} \
+            --mode {params.mode_flag} > {log} 2>&1
         """
 
 rule visualize_densities:
