@@ -16,7 +16,7 @@ def get_num_sim(wildcards):
     
     phi = N * s * math.exp(-U / s)
     
-    return 100 if phi > 1 else 100
+    return 100 if phi > 1 else 200
 
 MODES = {
     "fixed": "f",

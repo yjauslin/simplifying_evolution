@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.backends.backend_pdf import PdfPages
 import click
+import re
 
 def load_multi_wave_file(filename):
     """
@@ -59,8 +60,13 @@ def summarize_waves(input_file, output_folder, mode):
     os.makedirs(output_folder, exist_ok=True)
     
     # Generate output filename based on the input filename and mode
-    out_prefix = "wave_normal" if mode == 'n' else "wave_fixed"
-    out_name = f"{out_prefix}_{file_path.stem}.pdf"
+    match = re.search(r"(N\d+.*)", file_path.stem)
+    if match:
+        params_suffix = match.group(1)
+    else:
+        # Fallback if the pattern isn't found
+        params_suffix = file_path.stem
+    out_name = f"wave_summary_{params_suffix}.pdf"
     pdf_path = Path(output_folder) / out_name
 
     cmap = plt.cm.inferno

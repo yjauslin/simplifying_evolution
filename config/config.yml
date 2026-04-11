@@ -1,22 +1,22 @@
 experiments:
 
-  vary_s:
+  low_phi:
     pop_size: [5000]
     mut_rate: [0.006]
-    sel_coef: [0.0003, 0.005, 0.01, 0.02]
-    sigma: [0.0001]
+    sel_coef: [0.0004]
+    sigma: [0.00003, 0.00005, 0.0001, 0.0002]
   
-  vary_sigma:
+  intermediate_phi:
     pop_size: [5000]
     mut_rate: [0.006]
     sel_coef: [0.002]
-    sigma: [0.0001, 0.0002, 0.0005, 0.001]
+    sigma: [0.0001, 0.0003, 0.0005, 0.001]
   
-  vary_n:
-    pop_size: [500, 2000, 5000, 10000]
+  high_phi:
+    pop_size: [5000]
     mut_rate: [0.006]
-    sel_coef: [0.003]
-    sigma: [0.0005]
+    sel_coef: [0.004]
+    sigma: [0.0003, 0.0005, 0.001, 0.002]
 
 constants:
   CHRMLEN: 15000

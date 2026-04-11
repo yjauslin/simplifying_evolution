@@ -73,7 +73,7 @@ initialize() {
 	if (!WRITE_TREE) {
 		if (sim.cycle >= BURNIN) {
 			// Get mut burden
-			burden = p1.genomes.countOfMutationsOfType(m1);
+			burden = p1.individuals.haplosomes.countOfMutationsOfType(m1);
 			min = min(burden);	
 			tab = tabulate(burden)[min:max(burden)];
 			newLine = paste(sim.cycle, min+sim.substitutions.size(), paste(tab, sep=","), sep=":");

@@ -26,7 +26,7 @@ rule visualize_wave:
         mode_flag = lambda wc: wc.mode[0] # e.g., 'f' or 'n'
     resources:
         mem_mb = 12 * 1000,
-        runtime = 20,
+        runtime = 60,
     threads: 1
     shell:
         """

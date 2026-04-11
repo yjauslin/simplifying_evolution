@@ -30,7 +30,7 @@ def read_density_file(path, prefix):
 
     # sort the files first by population size then mutation rate and finally
     # selection coefficient
-    file_info.sort(key=lambda x: (x[1], x[2], x[3]))
+    file_info.sort(key=lambda x: (x[3], x[4], x[1], x[2]))
 
     files = [x[0] for x in file_info]
     return files
