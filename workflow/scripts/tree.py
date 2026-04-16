@@ -1,39 +1,56 @@
 import tskit
 import numpy as np
+import click
+import os
 
-ts = tskit.load("tmp/results/normal_N5000_U0.006_s0.002_sigma0.001.trees")
+@click.command()
+@click.option("--tree-name", "-t", required=True, help="The name of the tree sequence file (without the .trees extension).")
+@click.option("--input-folder", "-i", required=True, help="The folder containing the tree sequence file.")
+@click.option("--output", "-o", default="tmp/results/", help="The folder where the output will be saved.")
+@click.argument("sim_id", type=int)
+@click.argument("n_samples", type=int, default=100)
+def generate_tmrca_list(sim_id, tree_name, input_folder, output="tmp/results/", n_samples=100):
+    """
+    Generate a list of TMRCA values for pairs of samples from a tree sequence.
 
-print(ts)
+    Parameters
+    ----------
+    tree_name : The name of the tree sequence file (without the .trees extension).
+    input_folder : The folder containing the tree sequence file.
+    output : The folder where the output will be saved.
+    n_samples : The number of TMRCA values to generate.
+    """
+    ts = tskit.load(f"{input_folder}/{tree_name}.trees")
 
-reduced_ts = ts.simplify()
+    real_nodes = [ind.nodes[0] for ind in ts.individuals()]
 
-svg = reduced_ts.draw_svg()
+    reduced_ts = ts.simplify(real_nodes)
 
-with open("tmp/results/tree.svg", "w") as f:
-    f.write(svg)
+    tree = reduced_ts.first()
 
-np.random.seed(42)
+    rng = np.random.default_rng()
 
-pairwise_samples = np.random.choice(ts.samples(), size=2, replace=False)
+    tmrca_list = []
+    sample_nodes = []
 
-node_load = {node: 0.0 for node in pairwise_samples}
+    for ind in reduced_ts.individuals():
+        sample_nodes.append(ind.nodes[0])
 
-# Iterate over all sites that have mutations
-for variant in ts.variants(samples=pairwise_samples):
-    # variant.genotypes is an array of 0s and 1s 
-    # corresponding to the order of sample_nodes
-    
-    # Get the 's' for the mutation(s) at this site
-    # (Simplified: assuming one mutation per site for this example)
-    mut_id = variant.site.mutations[0].id
-    s = ts.mutation(mut_id).metadata["mutation_list"][0]["selection_coeff"]
-    
-    # Add 's' to the load of every individual who carries the mutation (genotype == 1)
-    for i, has_mutation in enumerate(variant.genotypes):
-        if has_mutation > 0:
-            node_id = pairwise_samples[i]
-            node_load[node_id] += s
+    n_samples = 100
 
-# Print results
-for node, load in list(node_load.items())[:10]:
-    print(f"Node {node} total load: {load}")
+    for _ in range(n_samples):
+        chosen_nodes = rng.choice(sample_nodes, size=2, replace=False)
+        tmrca = tree.tmrca(chosen_nodes[0], chosen_nodes[1])
+        tmrca_list.append(tmrca)
+
+    file_exists = os.path.isfile(f"{output}/{tree_name}.txt")
+    with open(f"{output}/{tree_name}.txt", "a") as f:
+        header = ["sim_id", "tmrca_list"]
+        if not file_exists:
+            f.write("\t".join(header) + "\n")
+        tmrca_str = ", ".join(map(str, tmrca_list))
+        line = [str(sim_id), tmrca_str]
+        f.write("\t".join(line) + "\n")
+
+if __name__ == "__main__":
+    generate_tmrca_list()
