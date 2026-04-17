@@ -21,3 +21,4 @@ experiments:
 constants:
   CHRMLEN: 15000
   BURNIN: 10
+  N_ITER: 100

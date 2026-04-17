@@ -29,8 +29,10 @@ initialize() {
 	defineConstant("SEQLEN", asInteger(seqlen));
 	defineConstant("BURNIN", asInteger(burnin));
 	defineConstant("ENDING", asInteger(ending));
+	defineConstant("FOLDER", asString(OUTPUT_FOLDER));
+	defineConstant("ID", asInteger(SIM_ID));
 	
-	fn = "fixed_N" + POPSIZE + "_U" + mutrate + "_s" + abs(SELCOEF) + "_sigma" + SIGMA + ".trees";
+	fn = "N" + POPSIZE + "_U" + mutrate + "_s" + abs(SELCOEF) + "_sigma" + SIGMA + "_" + ID + ".trees";
 	defineConstant("FILENAME", fn);	
 
 	// Enable Tree Sequence Recording if requested
@@ -88,7 +90,7 @@ initialize() {
 	if (sim.cycle >= ENDING) {
 		if (WRITE_TREE){
             // Saves the tree sequence to a file
-            sim.treeSeqOutput("tmp" + "/" + "results" + "/" + FILENAME);
+            sim.treeSeqOutput(FOLDER + FILENAME);
         }
 		sim.simulationFinished();
 	}	

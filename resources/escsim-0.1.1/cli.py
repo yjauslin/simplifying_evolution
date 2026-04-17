@@ -124,7 +124,7 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
         gens=gens,
         jobs=jobs,
         mode=mode,
-        tree=slim_tree_value
+        tree=slim_tree_value,
     )
 
     # Initialize counters/trackers

@@ -5,7 +5,9 @@ conda: "/data/projects/p2026-0005_simplify_evolution/Yannick/simplifying_evoluti
 include: "params.smk"
 include: "rules/simulations.smk"
 include: "rules/calc_density.smk"
+include: "rules/verify_density.smk"
 include: "rules/plots.smk"
+
 
 
 rule all:
@@ -13,6 +15,7 @@ rule all:
         escsim_outputs,
         density_outputs,
         wave_outputs,
+        frequency_outputs,
         "results/escsim_figures/fixed/FIGURE_PDF.pdf",
         "results/escsim_figures/fixed/FIGURE_PDF_mean_velocity_summary.pdf",
         "results/escsim_figures/normal/FIGURE_PDF.pdf",

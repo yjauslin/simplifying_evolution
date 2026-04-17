@@ -39,15 +39,16 @@ rule visualize_wave:
 rule visualize_densities:
     input:
         density_outputs
+        frequency_outputs
     output:
         "results/escsim_figures/coalescent_density.pdf",
         "results/escsim_figures/effective_population_size.pdf"
     log:
         "logs/visualize_densities.log"
     resources:
-        mem_mb=5*1000,        
-        runtime=60,
-    threads: 1
+        mem_mb=50*1000,        
+        runtime=120,
+    threads: 10
     shell:
         """
         python workflow/scripts/visualize_densities.py 2>&1 | tee {log}

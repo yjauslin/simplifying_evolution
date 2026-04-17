@@ -198,6 +198,8 @@ def run_external(seeds, folder, **kwargs):
             "-d", f"burnin={burnin}",
             "-d", f"ending={gens}",
             "-d", f"WRITE_TREE={tree}",
+            "-d", f"OUTPUT_FOLDER='{folder}'",
+            "-d", f"SIM_ID={sid}",
             slim_script
         ]
         cmd_list.append(cmd)
