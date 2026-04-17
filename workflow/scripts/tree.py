@@ -6,10 +6,10 @@ import os
 @click.command()
 @click.option("--tree-name", "-t", required=True, help="The name of the tree sequence file (without the .trees extension).")
 @click.option("--input-folder", "-i", required=True, help="The folder containing the tree sequence file.")
-@click.option("--output", "-o", default="tmp/results/", help="The folder where the output will be saved.")
+@click.option("--output", "-o", default="tmp/results", help="The folder where the output will be saved.")
 @click.argument("n_iter", type=int)
 @click.argument("n_samples", type=int, default=100)
-def generate_tmrca_list(sim_id, tree_name, input_folder, output="tmp/results/", n_samples=100):
+def generate_tmrca_list(n_iter, tree_name, input_folder, n_samples, output="tmp/results"):
     """
     Generate a list of TMRCA values for pairs of samples from a tree sequence.
 
@@ -36,11 +36,18 @@ def generate_tmrca_list(sim_id, tree_name, input_folder, output="tmp/results/", 
 
         for ind in reduced_ts.individuals():
             sample_nodes.append(ind.nodes[0])
+        
+        attempts = 0
 
-        for _ in range(n_samples):
+        while len(tmrca_list) < n_samples and attempts < n_samples * 10:
+            attempts += 1
             chosen_nodes = rng.choice(sample_nodes, size=2, replace=False)
-            tmrca = tree.tmrca(chosen_nodes[0], chosen_nodes[1])
-            tmrca_list.append(tmrca)
+            try:
+                tmrca = tree.tmrca(chosen_nodes[0], chosen_nodes[1])
+                tmrca_list.append(tmrca)
+            except ValueError:
+                continue
+
 
         file_exists = os.path.isfile(f"{output}/{tree_name}.txt")
         with open(f"{output}/{tree_name}.txt", "a") as f:

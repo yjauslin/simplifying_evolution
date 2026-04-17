@@ -10,7 +10,7 @@ experiments:
     pop_size: [5000]
     mut_rate: [0.006]
     sel_coef: [0.002]
-    sigma: [0.0001, 0.0003, 0.0005, 0.001]
+    sigma: [0.0002, 0.0003, 0.0005, 0.001]
   
   high_phi:
     pop_size: [5000]

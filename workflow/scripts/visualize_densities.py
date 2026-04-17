@@ -120,13 +120,13 @@ def visualizing_densities(input_folder, output):
         for entry in tree_fixed['tmrca_list']:
             # Split the string by comma and convert each piece to a float
             # Use strip() to handle any accidental whitespace
-            values = [float(x.strip()) for x in entry.split(',')]
+            values = [float(x) for x in str(entry).split(',')]
             fixed_tmrca_values.extend(values)
 
         for entry in tree_normal['tmrca_list']:
             # Split the string by comma and convert each piece to a float
             # Use strip() to handle any accidental whitespace
-            values = [float(x.strip()) for x in entry.split(',')]
+            values = [float(x) for x in str(entry).split(',')]
             normal_tmrca_values.extend(values)
 
         pop_size = df_normal["popsize"].iloc[0]

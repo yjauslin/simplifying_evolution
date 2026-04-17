@@ -31,8 +31,11 @@ initialize() {
 	defineConstant("ENDING", asInteger(ending));
 	defineConstant("FOLDER", asString(OUTPUT_FOLDER));
 	defineConstant("ID", asInteger(SIM_ID));
+
+	// format SIGMA into wanted format
+	sigma_str = format("%.1e", SIGMA);
 	
-	fn = "N" + POPSIZE + "_U" + mutrate + "_s" + abs(SELCOEF) + "_sigma" + SIGMA + "_" + ID + ".trees";
+	fn = "fixed_N" + POPSIZE + "_U" + mutrate + "_s" + abs(SELCOEF) + "_sigma" + sigma_str + "_" + ID + ".trees";
 	defineConstant("FILENAME", fn);	
 
 	// Enable Tree Sequence Recording if requested

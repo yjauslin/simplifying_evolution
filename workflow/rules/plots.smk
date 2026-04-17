@@ -17,7 +17,7 @@ rule visualize_wave:
     input:
         # Marking the input as temporary here ensures that once this specific 
         # rule finishes, the massive .out file is deleted.
-        wave_file = temp(get_wave_input)
+        wave_file = get_wave_input
     output:
         pdf = "results/escsim_figures/{mode}/wave_summary_N{N}_U{U}_s{s}_sigma{sigma}.pdf"
     log:
@@ -38,7 +38,7 @@ rule visualize_wave:
 
 rule visualize_densities:
     input:
-        density_outputs
+        density_outputs,
         frequency_outputs
     output:
         "results/escsim_figures/coalescent_density.pdf",
