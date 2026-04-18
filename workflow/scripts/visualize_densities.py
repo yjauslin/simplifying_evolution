@@ -54,6 +54,71 @@ def read_tree_file(path, prefix):
     files = [x[0] for x in file_info]
     return files
 
+def time_intervals(nsam=40, max_tmrca=2, popsize=1, include_0=True, include_inf=True):
+    """
+    Generates log-spaced time intervals. 
+    Scaled by popsize to convert from coalescent units to generations.
+    """
+    # Create the base log-spaced breaks
+    my_breaks = np.zeros((nsam,))
+    for my_index in range(nsam):
+        my_breaks[my_index] = (
+            0.1 * np.exp((my_index + 1) / nsam * np.log(1 + 10 * max_tmrca)) - 0.1
+        )
+
+    # Scale to generations BEFORE adding 0 or inf to ensure consistent types
+    my_breaks = my_breaks * popsize
+
+    if include_0:
+        my_breaks = np.insert(my_breaks, 0, 0.0)
+
+    if include_inf:
+        my_breaks = np.append(my_breaks, np.inf)
+
+    return my_breaks
+
+def calc_density(tmrca_values, pop_size, nbin=50, tmax=3):
+    """
+    Calculates the density from a list of TMRCA values.
+
+    Parameters:
+        tmrca_values (list or np.ndarray): The raw TMRCA values.
+        pop_size (int): The population size (N) used for scaling bins.
+        nbin (int): Number of bins.
+        tmax (float): Max time in coalescent units (T/N).
+
+    Returns:
+        tuple: (simprobs, bin_widths, bin_edges)
+    """
+    # Convert to numpy array for speed
+    tmrca_values = np.array(tmrca_values)
+    
+    # Define bins using the helper function
+    # Note: Using 2*N because of the haploid/diploid sex assumption in your notes
+    scaled_N = int(round(pop_size / 2))
+    bin_edges = time_intervals(nsam=nbin, max_tmrca=tmax, popsize=2 * scaled_N)
+    
+    # Calculate widths for normalization (ignoring the inf bin for width calc)
+    # We use a finite value for the last width to avoid division by inf
+    finite_edges = bin_edges.copy()
+    if np.isinf(finite_edges[-1]):
+        finite_edges[-1] = finite_edges[-2] * 1.1 # Small buffer for the tail
+    
+    bin_widths = np.diff(finite_edges)
+
+    # Calculate histogram
+    hist_counts, _ = np.histogram(tmrca_values, bins=bin_edges)
+    
+    # Density calculation: count / (total * width)
+    # This ensures the area under the curve integrates to 1
+    total_samples = hist_counts.sum()
+    if total_samples == 0:
+        simprobs = np.zeros_like(bin_widths)
+    else:
+        simprobs = hist_counts / (total_samples * bin_widths)
+
+    return simprobs, bin_widths, bin_edges
+
 @click.command()
 @click.option('--input_folder', '-i', default='results/coalescent_densities',
             help='Input folder for wave results from forward simulations'
@@ -97,13 +162,15 @@ def visualizing_densities(input_folder, output):
 
     # initializing result plot for coalescent densities
     fig1, axes1 = plt.subplots(nrows, ncols, figsize=(4*ncols, 4*nrows),
-                               sharey = "row", constrained_layout = True)
+                               sharey = "row")
     axes1 = axes1.flatten()
+    fig1.tight_layout(pad=3.0, rect=[0, 0, 1, 0.95], h_pad=5.0)
 
     # initializing result plot for effective population sizes
     fig2, axes2 = plt.subplots(nrows, ncols, figsize=(4*ncols, 4*nrows),
-                           sharey = "row", constrained_layout = True)
+                           sharey = "row")
     axes2 = axes2.flatten()
+    fig2.tight_layout(pad=3.0, rect=[0, 0, 1, 0.95])
 
     for i, (file_fixed, file_normal, tree_fixed, tree_normal) in enumerate(zip(files_fixed, files_normal, tree_fixed, tree_normal)):
 
@@ -134,6 +201,14 @@ def visualizing_densities(input_folder, output):
         sel_coef = df_normal["selcoef"].iloc[0]
         sigma = df_normal["sigma"].iloc[0]
 
+        simprobs, bin_widths, bin_edges = calc_density(fixed_tmrca_values, pop_size=pop_size)
+
+        plot_edges = bin_edges.copy()
+        if np.isinf(plot_edges[-1]):
+            plot_edges[-1] = plot_edges[-2] * 1.1
+
+        bin_centers = plot_edges[:-1] + (np.diff(plot_edges) / 2)
+
         density_fixed = np.array(df_fixed["density"].iloc[0].split(","), dtype=float)
         density_normal = np.array(df_normal["density"].iloc[0].split(","), dtype = float)
         
@@ -142,14 +217,16 @@ def visualizing_densities(input_folder, output):
 
         time = np.array(df_fixed["time"].iloc[0].split(","), dtype=float)
 
-        axes1[i].hist(fixed_tmrca_values, bins=50, density=True, alpha=0.5, label="WF_fixed", color='#2ca02c')
-        axes1[i].hist(normal_tmrca_values, bins=50, density=True, alpha=0.5, label="WF_normal", color='#e377c2')
+        axes1[i].hist(fixed_tmrca_values, bins=plot_edges, density=True, alpha=0.3, label="WF_fixed", color='#2ca02c')
+        axes1[i].hist(normal_tmrca_values, bins=plot_edges, density=True, alpha=0.3, label="WF_normal", color='gray')
         # visualizing coalescent densities
-        sns.lineplot(x=time, y=density_fixed, ax=axes1[i], label="fixed")
-        sns.lineplot(x=time, y=density_normal, ax=axes1[i], linestyle="--", label = "normal")
+        sns.lineplot(x=time, y=density_fixed, ax=axes1[i], label="fixed", color='#1f77b4', lw = 2.5)
+        sns.lineplot(x=time, y=density_normal, ax=axes1[i], linestyle="--", label = "normal", color="orange", lw = 2.5)
+        
         axes1[i].set_title(f"N={pop_size}, U={mut_rate}, s={sel_coef}, sigma={sigma}")
         axes1[i].set_xlabel("Time (Generations)")
         axes1[i].set_ylabel("Coalescent Density")
+        axes1[i].set_xlim(0, 5000)
 
         # converting y-axis-ticks to scientific format
         formatter = ScalarFormatter(useMathText=True)
