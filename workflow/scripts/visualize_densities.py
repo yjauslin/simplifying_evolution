@@ -77,7 +77,7 @@ def time_intervals(nsam=40, max_tmrca=2, popsize=1, include_0=True, include_inf=
 
     return my_breaks
 
-def calc_density(tmrca_values, pop_size, nbin=50, tmax=3):
+def calc_density(tmrca_values, pop_size, nbin=30, tmax=3):
     """
     Calculates the density from a list of TMRCA values.
 
@@ -207,8 +207,6 @@ def visualizing_densities(input_folder, output):
         if np.isinf(plot_edges[-1]):
             plot_edges[-1] = plot_edges[-2] * 1.1
 
-        bin_centers = plot_edges[:-1] + (np.diff(plot_edges) / 2)
-
         density_fixed = np.array(df_fixed["density"].iloc[0].split(","), dtype=float)
         density_normal = np.array(df_normal["density"].iloc[0].split(","), dtype = float)
         
@@ -226,7 +224,7 @@ def visualizing_densities(input_folder, output):
         axes1[i].set_title(f"N={pop_size}, U={mut_rate}, s={sel_coef}, sigma={sigma}")
         axes1[i].set_xlabel("Time (Generations)")
         axes1[i].set_ylabel("Coalescent Density")
-        axes1[i].set_xlim(0, 5000)
+        # ßaxes1[i].set_xlim(0, 5000)
 
         # converting y-axis-ticks to scientific format
         formatter = ScalarFormatter(useMathText=True)

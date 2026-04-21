@@ -32,6 +32,9 @@ initialize() {
 	defineConstant("FOLDER", asString(OUTPUT_FOLDER));
 	defineConstant("ID", asInteger(SIM_ID));
 
+	// delay after coalescence
+	defineConstant("POST_COAL_DELAY", 100);
+
 	// format SIGMA into wanted format
 	sigma_str = format("%.1e", SIGMA);
 	
@@ -40,7 +43,7 @@ initialize() {
 
 	// Enable Tree Sequence Recording if requested
 	if (WRITE_TREE) {
-        initializeTreeSeq();
+        initializeTreeSeq(checkCoalescence=T);
     }
 
 	// Simulation init
@@ -73,30 +76,34 @@ initialize() {
 }
 
 
-// Mutational burden
 1: late() {
-	if ((WRITE_TREE == F)){
-		if (sim.cycle >= BURNIN){
-			// Get mut burden
-			burden = p1.individuals.haplosomes.countOfMutationsOfType(m1);
-			min = min(burden);	
-			tab = tabulate(burden)[min:max(burden)];
-			newLine = paste(sim.cycle, min+sim.substitutions.size(), paste(tab, sep=","), sep=":");
-	
-			catn(newLine, error=T);
-		}
-	}
-}
-
-
-1: late() {
-	if (sim.cycle >= ENDING) {
-		if (WRITE_TREE){
-            // Saves the tree sequence to a file
-            sim.treeSeqOutput(FOLDER + FILENAME);
+	// Gene tree sequence
+if (WRITE_TREE) {
+        // Check if we have already recorded the coalescence event
+        if (!exists("COALESCENCE_CYCLE")) {
+            if (sim.treeSeqCoalesced()) {
+                // Record the "birth" of the MRCA for the whole population
+                defineGlobal("COALESCENCE_CYCLE", sim.cycle);
+            }
         }
-		sim.simulationFinished();
-	}	
+        
+        // If we have a recorded cycle, check if the delay has passed
+        if (exists("COALESCENCE_CYCLE")) {
+            if (sim.cycle >= (COALESCENCE_CYCLE + POST_COAL_DELAY)) {
+                sim.treeSeqOutput(FOLDER + FILENAME);
+                sim.simulationFinished();
+            }
+        }
+    } else {
+        // Mutational burden
+        if (sim.cycle >= BURNIN) {
+            burden = p1.individuals.haplosomes.countOfMutationsOfType(m1);
+            min_b = min(burden);    
+            tab = tabulate(burden)[min_b:max(burden)];
+            newLine = paste(sim.cycle, min_b + sim.substitutions.size(), paste(tab, sep=","), sep=":");
+            catn(newLine, error=T);
+        }
+    }
 }
 
 

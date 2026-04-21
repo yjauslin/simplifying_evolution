@@ -39,7 +39,7 @@ rule generate_coalescent_frequencies:
         "logs/frequencies/{mode}/N{N}_U{U}_s{s}_sigma{sigma}.log"
     params:
         n_iter=config["constants"]["N_ITER"],
-        n_sam=1000
+        n_sam=100
     resources:
         mem_mb = 10 * 1000,
         runtime = 60,
