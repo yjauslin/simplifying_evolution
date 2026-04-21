@@ -17,7 +17,7 @@ rule generate_trees:
         n_iter=config["constants"]["N_ITER"],
     resources:
         mem_mb= 12 * 1000,
-        runtime = 120,
+        runtime = 180,
     threads: 5
     shell:
         """

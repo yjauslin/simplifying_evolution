@@ -103,6 +103,9 @@ if (WRITE_TREE) {
             newLine = paste(sim.cycle, min_b + sim.substitutions.size(), paste(tab, sep=","), sep=":");
             catn(newLine, error=T);
         }
+		if (sim.cycle >= ENDING) {
+			sim.simulationFinished();
+		}
     }
 }
 

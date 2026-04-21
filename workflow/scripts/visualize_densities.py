@@ -224,7 +224,7 @@ def visualizing_densities(input_folder, output):
         axes1[i].set_title(f"N={pop_size}, U={mut_rate}, s={sel_coef}, sigma={sigma}")
         axes1[i].set_xlabel("Time (Generations)")
         axes1[i].set_ylabel("Coalescent Density")
-        # ßaxes1[i].set_xlim(0, 5000)
+        axes1[i].set_xlim(0, 10000)
 
         # converting y-axis-ticks to scientific format
         formatter = ScalarFormatter(useMathText=True)
