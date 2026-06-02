@@ -10,7 +10,7 @@ import sklearn.linear_model as lm
 from tqdm import tqdm
 
 
-def run_single_sim(cmd, sim_id):
+def run_single_sim(cmd, sim_id, folder):
     """Run a single simulation with the given command and simulation ID."""
     result = subprocess.run(cmd, capture_output=True, text=True)
     
@@ -18,12 +18,30 @@ def run_single_sim(cmd, sim_id):
     args = extract_args(result.args)
     mutrate = args.get("mutrate")
 
+    # Check if tree mode was ON
+    is_tree_mode = args.get("WRITE_TREE") == "T"
 
     if result.returncode != 0:
         print(f"[ERROR] Simulation {sim_id} failed with return code {result.returncode}.", file=sys.stderr)
         print(f"[ERROR] stderr: {result.stderr}", file=sys.stderr)
+
+    if is_tree_mode:
+        return {
+            "sim_id": sim_id,
+            "seed": args.get("seed"),
+            "is_tree": True,
+            "tmp_path": None,
+            "popsize": args.get("popsize"),
+            "selcoef": args.get("selcoef"),
+            "sigma": args.get("sigma"),
+            "mutrate": args.get("mutrate"),
+            "velocity": 0.0,
+            "profile": np.array([1.0])
+        }
         
     time, wave = parse_result(result.stderr)
+
+    wave_raw = wave.copy()
 
     # Fit linear model to calculate velocity
     time_flat = np.repeat(time, wave.shape[1])
@@ -34,7 +52,7 @@ def run_single_sim(cmd, sim_id):
     mean_burden_pred = model_full.predict(time_flat.reshape(-1, 1)).reshape(wave.shape)
     wave = wave - mean_burden_pred
     wave = wave - wave.min()
-    del mean_burden_pred, time_flat, model_full, time
+    del mean_burden_pred, time_flat, model_full
 
     # Make burden histogram
     bin_edges = np.arange(-0.05, np.ceil(wave.max()) + 1.5, 1)
@@ -42,16 +60,25 @@ def run_single_sim(cmd, sim_id):
     profile = np.trim_zeros(profile, trim="b")  # remove trailing zeros from back
     profile = profile/profile.sum()  # get frequency
 
-    del wave, bin_edges, _
+    # Write wave data to temp file, to keep main process memory-light
+    tmp_path = os.path.join(folder, f"sim_{sim_id}.tmp")
+    with open(tmp_path, 'w') as f_tmp:
+        for t, wave_row in zip(time, wave_raw):
+            wave_str = ",".join(map(str, wave_row))
+            f_tmp.write(f"{t}\t{wave_str}\n") 
+
+    del bin_edges, _, wave, wave_raw
 
     return {
         "sim_id": sim_id,
         "seed": args.get("seed"),
         "popsize": args.get("popsize"),
         "selcoef": args.get("selcoef"),
+        "sigma": args.get("sigma"),
         "mutrate": mutrate,
         "velocity": velocity,
-        "profile": profile
+        "profile": profile,
+        "tmp_path": tmp_path
     }
 
 
@@ -66,8 +93,10 @@ def extract_args(args):
         elif arg == "-d":
             key_value = next(arg_iter)
             key, value = key_value.split("=")
-            if key in ["popsize", "selcoef", "mutrate", "seqlen", "burnin", "ending"]:
-                if key in ["popsize", "selcoef", "mutrate"]:
+            if key == "WRITE_TREE":
+                    params["WRITE_TREE"] = value
+            elif key in ["popsize", "selcoef", "sigma", "mutrate", "seqlen", "burnin", "ending"]:
+                if key in ["popsize", "selcoef", "sigma", "mutrate"]:
                     params[key] = float(value)
                 else:
                     params[key] = int(value)
@@ -111,7 +140,7 @@ def parse_result(stderr: str):
     return time, flat_wave
 
 
-def run_external(seeds, **kwargs):
+def run_external(seeds, folder, **kwargs):
     """Run external command in parallele with different seeds and return result."""
     # Check for required parameters
     if not seeds or not isinstance(seeds, list):
@@ -124,10 +153,13 @@ def run_external(seeds, **kwargs):
     popssize = kwargs.get("popsize")
     selcoef = kwargs.get("selcoef")
     mutrate = kwargs.get("mutrate")
+    sigma = kwargs.get("sigma")
     chrmlen = kwargs.get("chrmlen")
     burnin = kwargs.get("burnin")
     gens = kwargs.get("gens")
     jobs = kwargs.get("jobs")
+    mode = kwargs.get("mode")
+    tree = kwargs.get("tree")
 
 
     # Double the gens if popsize is less or equal to 1000
@@ -144,7 +176,13 @@ def run_external(seeds, **kwargs):
     
     # Get absolute path to the slim script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    slim_script = os.path.join(script_dir, "escsim.slim")
+
+    prefix = "tree" if tree == "T" else "escsim"
+    if mode == "n":
+        slim_script = os.path.join(script_dir, f"{prefix}_normal.slim")
+    else:
+        slim_script = os.path.join(script_dir, f"{prefix}.slim")
+
 
     sim_ids = []
     cmd_list = []
@@ -155,25 +193,28 @@ def run_external(seeds, **kwargs):
             "-seed", str(s),
             "-d", f"popsize={popssize}",
             "-d", f"selcoef={selcoef}",
+            "-d", f"sigma={sigma}",
             "-d", f"mutrate={mutrate}",
             "-d", f"seqlen={chrmlen}",
             "-d", f"burnin={burnin}",
             "-d", f"ending={gens}",
+            "-d", f"WRITE_TREE={tree}",
+            "-d", f"OUTPUT_FOLDER='{folder}'",
+            "-d", f"SIM_ID={sid}",
             slim_script
         ]
         cmd_list.append(cmd)
         sim_ids.append(sid)
 
 
-    results = []
     with ProcessPoolExecutor(max_workers=jobs) as executor:
-        futures = {executor.submit(run_single_sim, cmd, sim_id): sim_id 
+        futures = {executor.submit(run_single_sim, cmd, sim_id, folder): sim_id 
                    for cmd, sim_id in zip(cmd_list, sim_ids)}
         
         for future in tqdm(as_completed(futures), total=len(futures), desc="Running simulations"):
-            results.append(future.result())
-    
-    return results
+            result = future.result()
+            yield result
+            del result
 
 
 def create_seeds(n: int, base_value: str, max_value: int = 2**32 - 1):

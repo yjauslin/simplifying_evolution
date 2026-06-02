@@ -1,0 +1,66 @@
+initialize() {
+
+
+    // Default constants (Dev mode)
+    if (exists("slimgui")) {
+        defineConstant("popsize", 5000);
+        defineConstant("selcoef", 4e-4);
+        defineConstant("sigma", 1e-4); // Included, used for filename
+        defineConstant("mutrate", 0.006);
+        defineConstant("seqlen", 15000);
+        defineConstant("OUTPUT_FOLDER", "./");
+        defineConstant("SIM_ID", 1);
+    }
+
+    defineConstant("POPSIZE", asInteger(popsize));
+    defineConstant("SELCOEF", -abs(asFloat(selcoef)));
+    defineConstant("MUTRATE", asFloat(mutrate)/asInteger(seqlen));
+    defineConstant("SEQLEN", asInteger(seqlen));
+    defineConstant("FOLDER", asString(OUTPUT_FOLDER));
+    defineConstant("ID", asInteger(SIM_ID));
+    defineConstant("POST_COAL_DELAY", 100);
+
+    // Setup Filename
+    sigma_str = format("%.1e", asFloat(sigma));
+    fn = "fixed_N" + POPSIZE + "_U" + mutrate + "_s" + abs(SELCOEF) + "_sigma" + sigma_str + "_" + ID + ".trees";
+    defineConstant("FILENAME", fn);
+
+    initializeTreeSeq(checkCoalescence=T);
+    
+    initializeMutationType("m1", 1.0, "f", SELCOEF);
+    initializeGenomicElementType("g1", m1, 1.0);
+
+    // Tree recording requirements
+    m1.convertToSubstitution = F;
+
+    // initializeChromosome(1, length=SEQLEN, type="A");
+    initializeMutationRate(MUTRATE);
+    initializeRecombinationRate(0);
+    initializeGenomicElement(g1, 0, SEQLEN-1);
+}
+
+1 early() {
+    sim.addSubpop("p1", POPSIZE);
+}
+
+
+1: late() {
+    // Check for coalescence
+    if (!exists("COALESCENCE_CYCLE")) {
+        if (sim.treeSeqCoalesced()) {
+            defineGlobal("COALESCENCE_CYCLE", sim.cycle);
+            catn("Coalescence detected at cycle " + sim.cycle);
+        }
+    }
+    
+    // Output and exit after delay
+    if (exists("COALESCENCE_CYCLE")) {
+        if (sim.cycle >= (COALESCENCE_CYCLE + POST_COAL_DELAY)) {
+            sim.treeSeqOutput(FOLDER + FILENAME);
+            catn("Tree sequence saved to: " + FILENAME);
+            sim.simulationFinished();
+        }
+    }
+}
+
+1000000 late() { stop("[ERROR] Safety stop!"); }

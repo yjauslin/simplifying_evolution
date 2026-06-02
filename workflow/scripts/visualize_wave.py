@@ -53,7 +53,7 @@ def create_new_page(file_name, cmap):
 
 @click.command()
 @click.argument('input_file', type=click.Path(exists=True))
-@click.option('--output_folder', '-o', default='results/escsim_figures', help="Directory to save the PDF")
+@click.option('--output_folder', '-o', default='results/escsim_figures', help="Directory to save the PDF to.")
 @click.option('--mode', '-m', default='f', help="Mode 'n' for normal, 'f' for fixed")
 def summarize_waves(input_file, output_folder, mode):
     file_path = Path(input_file)

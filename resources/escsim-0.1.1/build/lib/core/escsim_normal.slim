@@ -12,16 +12,17 @@ initialize() {
     defineConstant("POPSIZE", asInteger(popsize));
     defineConstant("SELCOEF", -abs(asFloat(selcoef)));
     defineConstant("MUTRATE", asFloat(mutrate)/asInteger(seqlen));
+	defineConstant("SIGMA", asFloat(sigma));
     defineConstant("SEQLEN", asInteger(seqlen));
     defineConstant("BURNIN", asInteger(burnin));
     defineConstant("ENDING", asInteger(ending));
 
-    initializeMutationType("m1", 1.0, "f", SELCOEF);
+    initializeMutationType("m1", 1.0, "n", SELCOEF, SIGMA);
     initializeGenomicElementType("g1", m1, 1.0);
 
     m1.convertToSubstitution = T;
 
-    initializeChromosome(1, length=SEQLEN, type="H");
+    // initializeChromosome(1, length=SEQLEN, type="H");
     initializeMutationRate(MUTRATE);
     initializeRecombinationRate(0);
     initializeGenomicElement(g1, 0, SEQLEN-1);
@@ -37,7 +38,7 @@ initialize() {
 1: late() {
     if (sim.cycle >= BURNIN) {
         // Count mutations per individual
-        burden = p1.individuals.haplosomes.countOfMutationsOfType(m1);
+        burden = p1.genome.countOfMutationsOfType(m1);
         min_b = min(burden);    
         
         // Tabulate frequencies of different burden levels

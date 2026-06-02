@@ -1,0 +1,96 @@
+initialize() {
+
+    // Default constants (Dev mode)
+    if (exists("slimgui")) {
+        defineConstant("popsize", 5000);
+        defineConstant("selcoef", 4e-4);
+        defineConstant("sigma", 1e-4);
+        defineConstant("mutrate", 0.006);
+        defineConstant("seqlen", 15000);
+        defineConstant("OUTPUT_FOLDER", "./");
+        defineConstant("SIM_ID", 1);
+        defineConstant("burnin", 10000);
+    }
+
+
+    defineConstant("POPSIZE", asInteger(popsize));
+    defineConstant("SELCOEF", ifelse(asFloat(selcoef) == 0.0,
+           0.0,
+           -abs(asFloat(selcoef))));
+    defineConstant("MUTRATE", asFloat(mutrate)/asInteger(seqlen));
+    defineConstant("SIGMA", asFloat(sigma));
+    defineConstant("SEQLEN", asInteger(seqlen));
+    defineConstant("FOLDER", asString(OUTPUT_FOLDER));
+    defineConstant("ID", asInteger(SIM_ID));
+    defineConstant("BURNIN", asInteger(burnin));
+
+    // Setup Filename
+    sigma_str = format("%.1e", asFloat(sigma));
+    fn = "N" + POPSIZE + "_U" + mutrate + "_s" + abs(SELCOEF) + "_sd" + sigma_str + "_" + ID + ".trees";
+    defineConstant("FILENAME", fn);
+
+    // Setup Params Filename
+    param_fn = "params_N" + POPSIZE +
+           "_U" + mutrate +
+           "_s" + abs(SELCOEF) + "_sd" +
+           SIGMA + ".txt";
+    defineConstant("PARAM_FILE", FOLDER + param_fn);
+
+    if (!fileExists(PARAM_FILE)) {
+    writeFile(PARAM_FILE,
+        "popsize\tmutrate\tselcoef\tsigma\tseqlen\tburnin\n"
+        );
+    }
+
+    // Append current run parameters
+    writeFile(PARAM_FILE,
+    POPSIZE + "\t" +
+    mutrate + "\t" +
+    SELCOEF + "\t" +
+    sigma + "\t" +
+    SEQLEN + "\t" +
+    BURNIN + "\n",
+    append=T
+    );
+
+    initializeTreeSeq(checkCoalescence=T);
+    
+    initializeMutationType("m1", 1.0, "n", SELCOEF, SIGMA);
+    initializeGenomicElementType("g1", m1, 1.0);
+
+    // Tree recording requirements
+    m1.convertToSubstitution = F;
+
+    initializeChromosome(1, length=SEQLEN, type="H");
+    initializeMutationRate(MUTRATE);
+    initializeRecombinationRate(0);
+    initializeGenomicElement(g1, 0, SEQLEN-1);
+}
+
+1 early() {
+    sim.addSubpop("p1", POPSIZE);
+}
+
+
+1: late() {
+    // Check if we have already recorded the coalescence event
+    if (!exists("COALESCENCE_CYCLE")) 
+    {
+            if (sim.treeSeqCoalesced()) 
+            {
+                // Record the "birth" of the MRCA for the whole population
+                defineGlobal("COALESCENCE_CYCLE", sim.cycle);
+            }
+    }
+        
+        // If we have a recorded cycle, check if the delay has passed
+    if (exists("COALESCENCE_CYCLE")) {
+        if (sim.cycle >= (COALESCENCE_CYCLE + burnin*POPSIZE)) 
+        {
+            sim.treeSeqOutput(FOLDER + FILENAME);
+            sim.simulationFinished();
+        }
+    }
+}
+
+1000000 late() { stop("[ERROR] Safety stop!"); }

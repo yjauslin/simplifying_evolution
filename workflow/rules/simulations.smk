@@ -1,4 +1,5 @@
 import math
+import re
 
 def get_mem_mb(wildcards):
     # wildcards.N is a string, convert to int
@@ -10,35 +11,58 @@ def get_mem_mb(wildcards):
         return 100 * 1000  # 100 GB default
 
 def get_num_sim(wildcards):
+    """
+    Determine number of simulations from N, U and s.
+    """
+
+    float_pattern = re.compile(
+        r"^-?\d*\.?\d+(?:[eE][+-]?\d+)?$"
+    )
+
+    # validate wildcards before conversion
+    for name in ["N", "U", "s"]:
+        value = getattr(wildcards, name)
+
+        if not float_pattern.match(str(value)):
+            raise ValueError(
+                f"Invalid wildcard '{name}' = '{value}'"
+            )
+
     N = float(wildcards.N)
-    s = float(wildcards.s)
     U = float(wildcards.U)
-    
+    s = float(wildcards.s)
+
+    # avoid division by zero or tiny s
+    if s == 0:
+        return 200
+
     phi = N * s * math.exp(-U / s)
-    
+
     return 100 if phi > 1 else 200
 
-MODES = {
-    "fixed": "f",
-    "normal": "n"
-}
-
-escsim_outputs = [
-    f"results/escsim/{mode}/escsim_N{p['N']}_U{p['U']}_s{p['s']}_sigma{p['sigma']}.out"
-    for mode in MODES
+escsim_outputs_fixed = [
+    f"results/escsim/fixed/escsim_N{p['N']}_U{p['U']}_s{p['s']}.out"
     for p in PARAM_COMBINATIONS
 ]
 
-rule escsim_run:
+escsim_outputs_normal = [
+    f"results/escsim/normal/escsim_N{p['N']}_U{p['U']}_s{p['s']}_sd{p['sigma']}.out"
+    for p in PARAM_COMBINATIONS
+]
+
+rule escsim_run_fixed:
+    wildcard_constraints:
+        N = r"\d+",
+        U = r"[\deE.+-]+",
+        s = r"[\deE.+-]+"
     output:
-        sim="results/escsim/{mode}/escsim_N{N}_U{U}_s{s}_sigma{sigma}.out",
-        wave=temp("results/escsim/{mode}/wave_N{N}_U{U}_s{s}_sigma{sigma}.out")
+        sim="results/escsim/fixed/escsim_N{N}_U{U}_s{s}.out",
+        wave=temp("results/escsim/fixed/wave_N{N}_U{U}_s{s}.out")
     log:
-        "logs/escsim/{mode}/escsim_N{N}_U{U}_s{s}_sigma{sigma}.log"
+        "logs/escsim/fixed/escsim_N{N}_U{U}_s{s}.log"
     params:
         CHRMLEN=config["constants"]["CHRMLEN"],
         BURNIN=config["constants"]["BURNIN"],
-        mode_flag=lambda wc: MODES[wc.mode],
         w_val=get_num_sim
     threads: 16
     shadow: "minimal"
@@ -48,22 +72,22 @@ rule escsim_run:
     shell:
         """
         escsim run \
-            -f results/escsim/{wildcards.mode} \
-            -m {params.mode_flag} \
+            -f results/escsim/fixed \
+            -m f \
             -w {params.w_val} \
             -j 16 \
-            {wildcards.N} {wildcards.s} {wildcards.U} {wildcards.sigma} \
+            {wildcards.N} {wildcards.s} {wildcards.U} \
             {params.CHRMLEN} {params.BURNIN} 2>&1 | tee {log}
         """
 
-rule escsim_summarize:
+rule escsim_summarize_fixed:
     input:
-        escsim_outputs
+        escsim_outputs_fixed
     output:
-        "results/escsim_figures/{mode}/FIGURE_PDF.pdf",
-        "results/escsim_figures/{mode}/FIGURE_PDF_mean_velocity_summary.pdf"
+        "results/escsim_figures/fixed/FIGURE_PDF.pdf",
+        "results/escsim_figures/fixed/FIGURE_PDF_mean_velocity_summary.pdf"
     log:
-        "logs/escsim_summarize_{mode}.log"
+        "logs/escsim_summarize_fixed.log"
     resources:
         mem_mb=5*1000,        
         runtime=60,
@@ -71,7 +95,57 @@ rule escsim_summarize:
     shell:
         """
         escsim summarize \
-            -i results/escsim/{wildcards.mode} \
-            -o results/escsim_figures/{wildcards.mode} \
+            -i results/escsim/fixed \
+            -o results/escsim_figures/fixed \
+            FIGURE_PDF 2>&1 | tee {log}
+        """
+
+rule escsim_run_normal:
+    wildcard_constraints:
+        N = r"\d+",
+        U = r"[\deE.+-]+",
+        s = r"[\deE.+-]+"
+    output:
+        sim="results/escsim/normal/escsim_N{N}_U{U}_s{s}_sd{sigma}.out",
+        wave=temp("results/escsim/normal/wave_N{N}_U{U}_s{s}_sd{sigma}.out")
+    log:
+        "logs/escsim/normal/escsim_N{N}_U{U}_s{s}_sd{sigma}.log"
+    params:
+        CHRMLEN=config["constants"]["CHRMLEN"],
+        BURNIN=config["constants"]["BURNIN"],
+        w_val=get_num_sim
+    threads: 16
+    shadow: "minimal"
+    resources:
+        mem_mb=get_mem_mb,        
+        runtime=180
+    shell:
+        """
+        escsim run \
+            -f results/escsim/normal \
+            -m n \
+            -w {params.w_val} \
+            -j 16 \
+            {wildcards.N} {wildcards.s} {wildcards.U} {wildcards.sigma} \
+            {params.CHRMLEN} {params.BURNIN} 2>&1 | tee {log}
+        """
+
+rule escsim_summarize_normal:
+    input:
+        escsim_outputs_normal
+    output:
+        "results/escsim_figures/normal/FIGURE_PDF.pdf",
+        "results/escsim_figures/normal/FIGURE_PDF_mean_velocity_summary.pdf"
+    log:
+        "logs/escsim_summarize_normal.log"
+    resources:
+        mem_mb=5*1000,        
+        runtime=60,
+    threads: 4
+    shell:
+        """
+        escsim summarize \
+            -i results/escsim/normal \
+            -o results/escsim_figures/normal \
             FIGURE_PDF 2>&1 | tee {log}
         """

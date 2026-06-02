@@ -1,45 +1,82 @@
-frequency_outputs = [
-    f"results/coalescent_densities/{mode}_N{p['N']}_U{p['U']}_s{p['s']}_sigma{p['sigma']:.1e}.txt"
-    for mode in MODES
+frequency_outputs_fixed = [
+    f"results/coalescent_densities/fixed_N{p['N']}_U{p['U']}_s{p['s']}.txt"
     for p in PARAM_COMBINATIONS
 ]
 
-rule generate_trees:
+frequency_outputs_normal = [
+    f"results/coalescent_densities/normal_N{p['N']}_U{p['U']}_s{p['s']}_sd{p['sigma']:.1e}.txt"
+    for p in PARAM_COMBINATIONS
+]
+
+
+rule generate_trees_fixed:
+    input:
+        "workflow/scripts/tree.slim"
     output:
-        trees = temp(expand(
-            "results/trees/{{mode}}_N{{N}}_U{{U}}_s{{s}}_sigma{{sigma}}_{i}.trees",
-            i=range(config["constants"]["N_ITER"])
-        ))
+        "results/trees/fixed_N{N}_U{U}_s{s}/N{N}_U{U}_s{s}_{sim_id}.trees"
     log:
-        "logs/trees/{mode}/N{N}_U{U}_s{s}_sigma{sigma}_batch.log"
+        "logs/trees/fixed/N{N}_U{U}_s{s}/{sim_id}.log"
     params:
-        mode_flag=lambda wc: MODES[wc.mode],
-        n_iter=config["constants"]["N_ITER"],
+        CHRMLEN=config["constants"]["CHRMLEN"],
+        BURNIN=config["constants"]["BURNIN"],
+        folder='results/trees/fixed_N{N}_U{U}_s{s}/'
     resources:
-        mem_mb= 12 * 1000,
-        runtime = 180,
-    threads: 5
+        mem_mb= 1000,
+        runtime = 60,
+    threads: 1
     shell:
         """
-        escsim run \
-        -t -w {params.n_iter} -j 5 -m {params.mode_flag} \
-        --folder results/trees/ \
-        {wildcards.N} {wildcards.s} {wildcards.U} {wildcards.sigma} \
+        slim -d popsize={wildcards.N} \
+             -d selcoef={wildcards.s} \
+             -d mutrate={wildcards.U} \
+             -d seqlen={params.CHRMLEN} \
+             -d burnin={params.BURNIN} \
+             -d OUTPUT_FOLDER='"{params.folder}"' \
+             -d SIM_ID={wildcards.sim_id} \
+             {input}
         """
 
-rule generate_coalescent_frequencies:
+rule generate_trees_normal:
+    input:
+        "workflow/scripts/tree_normal.slim"
+    output:
+        "results/trees/normal_N{N}_U{U}_s{s}_sd{sigma}/N{N}_U{U}_s{s}_sd{sigma}_{sim_id}.trees"
+    log:
+        "logs/trees/normal/N{N}_U{U}_s{s}_sd{sigma}/{sim_id}.log"
+    params:
+        CHRMLEN=config["constants"]["CHRMLEN"],
+        BURNIN=config["constants"]["BURNIN"],
+        folder="results/trees/normal_N{N}_U{U}_s{s}_sd{sigma}/"
+    resources:
+        mem_mb= 1000,
+        runtime = 60,
+    threads: 1
+    shell:
+        """
+        slim -d popsize={wildcards.N} \
+             -d selcoef={wildcards.s} \
+             -d sigma={wildcards.sigma} \
+             -d mutrate={wildcards.U} \
+             -d seqlen={params.CHRMLEN} \
+             -d burnin={params.BURNIN} \
+             -d OUTPUT_FOLDER='"{params.folder}"' \
+             -d SIM_ID={wildcards.sim_id} \
+             {input}
+        """
+
+rule generate_coalescent_frequencies_fixed:
     input:
         expand(
-            "results/trees/{{mode}}_N{{N}}_U{{U}}_s{{s}}_sigma{{sigma}}_{i}.trees",
-            i=range(config["constants"]["N_ITER"])
+            "results/trees/fixed_N{{N}}_U{{U}}_s{{s}}/N{{N}}_U{{U}}_s{{s}}_{i}.trees",
+            i=range(config["constants"]["N_SIM"])
         )
     output:
-        "results/coalescent_densities/{mode}_N{N}_U{U}_s{s}_sigma{sigma}.txt"
+        "results/coalescent_densities/fixed_N{N}_U{U}_s{s}.txt"
     log:
-        "logs/frequencies/{mode}/N{N}_U{U}_s{s}_sigma{sigma}.log"
+        "logs/frequencies/fixed/N{N}_U{U}_s{s}.log"
     params:
-        n_iter=config["constants"]["N_ITER"],
-        n_sam=100
+        n_sim=config["constants"]["N_SIM"],
+        n_sam=config["constants"]["N_SAM"]
     resources:
         mem_mb = 10 * 1000,
         runtime = 60,
@@ -47,9 +84,36 @@ rule generate_coalescent_frequencies:
     shell:
         """
         python workflow/scripts/tree.py \
-        -t {wildcards.mode}_N{wildcards.N}_U{wildcards.U}_s{wildcards.s}_sigma{wildcards.sigma} \
-        -i results/trees/ -o results/coalescent_densities \
-        {params.n_iter} {params.n_sam} > {log} 2>&1
+        -t N{wildcards.N}_U{wildcards.U}_s{wildcards.s} \
+        -i results/trees/fixed_N{N}_U{U}_s{s}/ \
+        -o results/coalescent_densities \
+        {params.n_sim} {params.n_sam} 2>&1 | tee {log}
+        """
+
+rule generate_coalescent_frequencies_normal:
+    input:
+        expand(
+            "results/trees/normal_N{{N}}_U{{U}}_s{{s}}_sd{{sigma}}/N{{N}}_U{{U}}_s{{s}}_sd{{sigma}}_{i}.trees",
+            i=range(config["constants"]["N_SIM"])
+        )
+    output:
+        "results/coalescent_densities/normal_N{N}_U{U}_s{s}_sd{sigma}.txt"
+    log:
+        "logs/frequencies/normal/N{N}_U{U}_s{s}_sigma{sigma}.log"
+    params:
+        n_iter=config["constants"]["N_SIM"],
+        n_sam=config["constants"]["N_SAM"]
+    resources:
+        mem_mb = 10 * 1000,
+        runtime = 60,
+    threads: 1
+    shell:
+        """
+        python workflow/scripts/tree.py \
+        -t N{wildcards.N}_U{wildcards.U}_s{wildcards.s}_sd{wildcards.sigma} \
+        -i results/trees/normal_N{wildcards.N}_U{wildcards.U}_s{wildcards.s}_sd{wildcards.sigma}/ \
+        -o results/coalescent_densities \
+        {params.n_iter} {params.n_sam} 2>&1 | tee {log}
         """
         
 

@@ -1,118 +1,58 @@
-	// set up a simple neutral simulation
 initialize() {
-	if (exists("slimgui")) {
-		catn('________________________________________', error=F);
-		catn("SlimGUI exists", error=F);
-		catn("Running in dev mode!", error=F);
-		catn('========================================', error=F);
-		
-		defineConstant("popsize", "5000");
-		defineConstant("selcoef", "4e-4");
-		defineConstant("sigma", "1e-4");
-		defineConstant("mutrate", "0.006");
-		defineConstant("seqlen", "15000");
-		defineConstant("burnin", "5000");
-		defineConstant("ending", "50000");
-	
-	}
-	
-	// Set default if not provided via command line
-    if (!exists("WRITE_TREE")) {
-        defineConstant("WRITE_TREE", F);
+    // Default constants (Dev mode)
+    if (exists("slimgui")) {
+        defineConstant("popsize", 5000);
+        defineConstant("selcoef", 4e-4);
+        defineConstant("mutrate", 0.006);
+        defineConstant("seqlen", 15000);
+        defineConstant("burnin", 5000);
+        defineConstant("ending", 50000);
     }
 
-	// Rewrite constants
-	defineConstant("POPSIZE", asInteger(popsize));
-	defineConstant("SELCOEF", -abs(asFloat(selcoef)));
+    defineConstant("POPSIZE", asInteger(popsize));
+    defineConstant("SELCOEF", -abs(asFloat(selcoef)));
+    defineConstant("MUTRATE", asFloat(mutrate)/asInteger(seqlen));
 	defineConstant("SIGMA", asFloat(sigma));
-	defineConstant("MUTRATE", asFloat(mutrate)/asInteger(seqlen));
-	defineConstant("SEQLEN", asInteger(seqlen));
-	defineConstant("BURNIN", asInteger(burnin));
-	defineConstant("ENDING", asInteger(ending));
-	defineConstant("FOLDER", asString(OUTPUT_FOLDER));
-	defineConstant("ID", asInteger(SIM_ID));
+    defineConstant("SEQLEN", asInteger(seqlen));
+    defineConstant("BURNIN", asInteger(burnin));
+    defineConstant("ENDING", asInteger(ending));
 
-	// delay after coalescence
-	defineConstant("POST_COAL_DELAY", 100);
+    initializeMutationType("m1", 1.0, "n", SELCOEF, SIGMA);
+    initializeGenomicElementType("g1", m1, 1.0);
 
-	// format SIGMA into wanted format
-	sigma_str = format("%.1e", SIGMA);
+    m1.convertToSubstitution = T;
 
-	fn = "normal_N" + POPSIZE + "_U" + mutrate + "_s" + abs(SELCOEF) + "_sigma" + sigma_str + "_" + ID + ".trees";
-	defineConstant("FILENAME", fn);
+    initializeChromosome(1, length=SEQLEN, type="H");
+    initializeMutationRate(MUTRATE);
+    initializeRecombinationRate(0);
+    initializeGenomicElement(g1, 0, SEQLEN-1);
 
-	// Enable Tree Sequence Recording if requested
-	if (WRITE_TREE) {
-        initializeTreeSeq(checkCoalescence=T);
-    }
-
-	// Simulation init
-	// initializeSex();
-	initializeMutationType("m1", 1.0, "n", SELCOEF, SIGMA);
-	initializeGenomicElementType("g1", m1, 1.0);
-	m1.convertToSubstitution = T;  // will count substitutions
-	
-	
-	// Chromosome model (mtDNA)
-	{
-		id			= 1;
-		length	= SEQLEN;
-		type		= "H";
-		
-		initializeChromosome(1, length=length, type=type);
-		initializeMutationRate(MUTRATE);
-		initializeRecombinationRate(0);
-		initializeGenomicElement(g1, 0, SEQLEN-1);
-	}
-	
-	// Initialize outputfile
-	headerline = "#cycle:min_burden:consequential_counts_incl_min";
-	catn(headerline, error=T);
+    // Header for output
+    catn("#cycle:min_burden:consequential_counts_incl_min", error=T);
 }
 
-// create a population
 1 early() {
-	sim.addSubpop("p1", POPSIZE);
+    sim.addSubpop("p1", POPSIZE);
 }
-
-
 
 1: late() {
-	// Gene tree sequence
-if (WRITE_TREE) {
-        // Check if we have already recorded the coalescence event
-        if (!exists("COALESCENCE_CYCLE")) {
-            if (sim.treeSeqCoalesced()) {
-                // Record the "birth" of the MRCA for the whole population
-                defineGlobal("COALESCENCE_CYCLE", sim.cycle);
-            }
-        }
+    if (sim.cycle >= BURNIN) {
+        // Count mutations per individual
+        burden = p1.individuals.haplosomes.countOfMutationsOfType(m1);
+        min_b = min(burden);    
         
-        // If we have a recorded cycle, check if the delay has passed
-        if (exists("COALESCENCE_CYCLE")) {
-            if (sim.cycle >= (COALESCENCE_CYCLE + POST_COAL_DELAY)) {
-                sim.treeSeqOutput(FOLDER + FILENAME);
-                sim.simulationFinished();
-            }
-        }
-    } else {
-        // Mutational burden
-        if (sim.cycle >= BURNIN) {
-            burden = p1.individuals.haplosomes.countOfMutationsOfType(m1);
-            min_b = min(burden);    
-            tab = tabulate(burden)[min_b:max(burden)];
-            newLine = paste(sim.cycle, min_b + sim.substitutions.size(), paste(tab, sep=","), sep=":");
-            catn(newLine, error=T);
-        }
-		if (sim.cycle >= ENDING) {
-			sim.simulationFinished();
-		}	
-	}
+        // Tabulate frequencies of different burden levels
+        tab = tabulate(burden)[min_b:max(burden)];
+        
+        // Output format: cycle : min_burden_total : frequencies
+        total_min_burden = min_b + sim.substitutions.size();
+        newLine = paste(sim.cycle, total_min_burden, paste(tab, sep=","), sep=":");
+        catn(newLine, error=T);
+    }
+
+    if (sim.cycle >= ENDING) {
+        sim.simulationFinished();
+    }
 }
 
-
-
-// Final output to enforce simulation
-1000000 late() {
-	stop("[ERROR] Safety stop after 1 Mio generations!");
-}
+1000000 late() { stop("[ERROR] Safety stop!"); }

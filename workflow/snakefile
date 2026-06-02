@@ -12,13 +12,17 @@ include: "rules/plots.smk"
 
 rule all:
     input:
-        escsim_outputs,
-        density_outputs,
-        wave_outputs,
-        frequency_outputs,
+        escsim_outputs_fixed,
+        escsim_outputs_normal,
+        density_outputs_fixed,
+        density_outputs_normal,
+        wave_outputs_fixed,
+        wave_outputs_normal,
+        frequency_outputs_fixed,
+        frequency_outputs_normal,
         "results/escsim_figures/fixed/FIGURE_PDF.pdf",
         "results/escsim_figures/fixed/FIGURE_PDF_mean_velocity_summary.pdf",
         "results/escsim_figures/normal/FIGURE_PDF.pdf",
         "results/escsim_figures/normal/FIGURE_PDF_mean_velocity_summary.pdf",
-        "results/escsim_figures/coalescent_density.pdf",
-        "results/escsim_figures/effective_population_size.pdf"
+        "results/escsim_figures/coalescent_density.jpg",
+        "results/escsim_figures/effective_population_size.jpg"

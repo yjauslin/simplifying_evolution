@@ -66,13 +66,17 @@ def main():
 @click.argument('popsize', type=float)
 @click.argument('selcoef', type=float)
 @click.argument('mutrate', type=float)
+@click.argument('sigma', type=float, required=False)
 @click.argument('chrmlen', type=int, required=False)
 @click.argument('burnin', type=int, required=False)
 @click.argument('gens', type=int, required=False)
 @click.option('--jobs', '-j', default=1, help='Number of parallel jobs to run')
 @click.option('--workers', '-w', default=1, help='Maximum number of worker processes')
 @click.option('--folder', '-f', default='tmp/results', help='Output folder for simulation results; will use existing simulations if found (default: tmp/results)')
-def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder):
+@click.option('--mode', '-m', default='f', help='Determines whether to run forward simulations with a fixed selection coefficient (f), ' \
+'a normally distributed selection coefficient with mean and standard deviation (n) or one drawn out of discrete bins (d)')
+@click.option('--tree', '-t', is_flag=True, help='Whether to write the tree file for each simulation (default: False)')
+def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, folder, mode, tree):
     """Run evolution simulations.
     
     Arguments:
@@ -103,73 +107,95 @@ def run(popsize, selcoef, mutrate, chrmlen, burnin, gens, jobs, workers, folder)
         burnin = int(popsize)
     if gens is None:
         gens = int(popsize)+burnin
+    if sigma is None:
+        sigma = 0.0001
     
-
+    # Convert Python True/False to SLiM T/F
+    slim_tree_value = "T" if tree else "F"
     # Run simulations
     seeds = create_seeds(n=workers, base_value=str(timeit.default_timer()))
     params = dict(
         popsize=popsize,
         selcoef=selcoef,
         mutrate=mutrate,
+        sigma=sigma,
         chrmlen=chrmlen,
         burnin=burnin,
         gens=gens,
         jobs=jobs,
+        mode=mode,
+        tree=slim_tree_value,
     )
-    results = run_external(seeds=seeds, **params)
 
-    # Test seeds
-    seeds_observed = [res["seed"] for res in results]
-    if set(seeds) != set(seeds_observed):
-        click.echo(f"[WARNING] Mismatch in seeds! Expected: {seeds}, Observed: {seeds_observed}")
+    # Initialize counters/trackers
+    seeds_observed = []
+    sim_count = 0
 
 
     # Write to output folder (Folder name should be escsim_YYYY-MM-DD_rndomstr.out)
     # date = datetime.datetime.now().strftime('%Y-%m-%d')
     # rndstr = hashlib.md5(''.join(map(str, seeds)).encode()).hexdigest()[:8]
-    outfile = os.path.join(folder, f"escsim_N{int(popsize)}_U{mutrate}_s{selcoef}.out")
     
-    with open(outfile, 'w') as fout:
+    if tree:
+        click.echo("[INFO] Tree mode enabled. SLiM will output .trees files directly.")
+        for res in run_external(seeds=seeds, folder=folder, **params):
+            click.echo(f"[INFO] Simulation {res['sim_id']} (Seed: {res['seed']}) complete. Tree saved.")
+        
+        click.echo(f"[INFO] All tree simulations finished. Total: {sim_count}")
+        return # Exit the function early
+
+    escsim_file = os.path.join(folder, f"escsim_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
+    wave_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}_sigma{sigma}.out")
+
+    
+    with open(escsim_file, 'w') as f_esc, open(wave_file, 'w') as f_wave:
         # Write header
-        header = ["sim_id", "seed", "popsize", "selcoef", "mutrate", "velocity", "profile"]
-        fout.write("\t".join(header) + "\n")
+        header_esc = ["sim_id", "seed", "popsize", "selcoef", "sigma", "mutrate", "velocity", "profile"]
+        header_wave = ["time", "wave"]
         
-        for res in results:
+        f_esc.write("\t".join(header_esc) + "\n")
+        f_wave.write("\t".join(header_wave) + "\n")
+        
+        for res in run_external(seeds=seeds, folder=folder, **params):
+            sim_count += 1
+            seeds_observed.append(res["seed"])
+            # 1. Write metadata to escsim
             profile_str = ",".join(map(str, res["profile"]))
-            line = [
-                str(res["sim_id"]),
-                str(res["seed"]),
-                str(res["popsize"]),
-                str(res["selcoef"]),
-                str(res["mutrate"]),
-                f"{res['velocity']:.6f}",
-                profile_str
-            ]
-            fout.write("\t".join(line) + "\n")
-    click.echo("Writing wave file")
-    click.echo(f"{results}")
-    out_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}.out")
-    with open(out_file, 'w') as fout:
+            
+            line_esc = [
+            str(res["sim_id"]),
+            str(res["seed"]),
+            str(res["popsize"]),
+            str(res["selcoef"]),
+            str(res["sigma"]),
+            str(res["mutrate"]),
+            f"{res['velocity']:.6f}", # Format float for readability
+            profile_str
+        ]
 
-        header = ["time", "wave"]
-        fout.write("\t".join(header) + "\n")
+            f_esc.write("\t".join(line_esc) + "\n")
         
-        for res in results:
-            wave = res["wave"]
-            time = res["time"]
-            click.echo(f"{wave}, {time}")
-        
-            for i, row in enumerate(wave):
-                wave_str = ",".join(map(str, row))
-                line = [str(time[i]), wave_str]
-                fout.write("\t".join(line) + "\n")
+            # 2. Stream wave data line-by-line
+            # This prevents storing the entire wave history in a string before writing
+            with open(res["tmp_path"], 'r') as f_tmp:
+                f_wave.write(f_tmp.read())
 
+            os.remove(res["tmp_path"])
+            # 3. Explicitly clear local reference to large objects
+            del res
+    if set(seeds) != set(seeds_observed):
+        click.echo(f"[WARNING] Mismatch in seeds!")
 
     # Print summary of parameters
-    click.echo(f"[INFO] Parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}")
+    if mode == "n":
+        click.echo(f"[INFO] Parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}, sigma={sigma}")
+    else:
+        click.echo(f"[INFO] Parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}")
     click.echo(f"[INFO] chrmlen={chrmlen}, burnin={burnin}, gens={gens}")
-    click.echo(f"[INFO] Number of simulations run: {len(results)}")
-    click.echo(f"[INFO] Results written to: {os.path.basename(outfile)}")
+    click.echo(f"[INFO] Number of simulations run: {sim_count}")
+    click.echo(f"[INFO] Simulations were run in mode {mode}")
+    click.echo(f"[INFO] Results written to: {os.path.basename(escsim_file)}")
+    click.echo(f"[INFO] Wave file written to: {os.path.basename(wave_file)}")
     
 
     # Final message
@@ -195,7 +221,10 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
     # Get all files that have the form escsim_YYYY-MM-DD_*.out
     # sim_files = [f for f in os.listdir(input_folder) if re.match(r"escsim_\d{4}-\d{2}-\d{2}_.+\.out", f)]
     # Get all files that have the form escsim_N{N}_U{U}_s{s}.out
-    sim_files = [f for f in os.listdir(input_folder) if re.match(r"escsim_N\d+_U\d+(\.\d+)?_s\d+(\.\d+)?\.out", f)]
+    num = r"\d+(?:\.\d+)?(?:e-?\d+)?"
+    sim_files = [f for f in os.listdir(input_folder)
+                 if re.match(rf"escsim_N\d+_U{num}_s{num}_sigma{num}\.out",
+                 f)]
     click.echo(f"[INFO] Found {len(sim_files)} simulation result file(s).")
     df_list = []
     for _, sim_file in enumerate(sim_files):
@@ -217,11 +246,12 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
     sns.set(style="ticks", context="paper")
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    velocity_summary = df.groupby(["popsize", "selcoef", "mutrate"])['velocity'].agg(['mean', 'std', 'count']).reset_index()
+    velocity_summary = df.groupby(["popsize", "selcoef", "mutrate", "sigma"])['velocity'].agg(['mean', 'std', 'count']).reset_index()
     velocity_summary["Ns"] = velocity_summary['popsize'] * velocity_summary['selcoef']
     velocity_summary["lineid"] = velocity_summary.apply(lambda row: f"$N={format_sci(row['popsize'])}$, $U_d={format_sci(row['mutrate'])}$", axis=1)
     velocity_summary["Popsize $N$"] = velocity_summary['popsize'].apply(lambda x: format_sci(x))
     velocity_summary["Mutation rate $U_d$"] = velocity_summary['mutrate'].apply(lambda x: format_sci(x))
+    velocity_summary["Sigma"] = velocity_summary['sigma'].apply(lambda x: format_sci(x))
 
 
     # As the x scale will be log, make the zero to be on the xlimits as if it weren't zero
@@ -302,12 +332,12 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
 
     ## Figure logic of individual parameter combinations
     # Loop through the unique parameter combinations
-    param_cols = ['popsize', 'selcoef', 'mutrate']
-    df_sorted = df.sort_values(by=['popsize', 'mutrate', 'selcoef'], ascending=[False, False, False])
+    param_cols = ['popsize', 'selcoef', 'mutrate', 'sigma']
+    df_sorted = df.sort_values(by=['popsize', 'mutrate', 'selcoef', 'sigma'], ascending=[False, False, False, False])
     grouped = df_sorted.groupby(param_cols, sort=False)
     for params, group in grouped:
-        popsize, selcoef, mutrate = params
-        click.echo(f"[INFO] Plotting for parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}")
+        popsize, selcoef, mutrate, sigma = params
+        click.echo(f"[INFO] Plotting for parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}, sigma={sigma}")
 
         # Calculate phi
         phi = calc_phi(popsize, selcoef, mutrate)
@@ -418,7 +448,7 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
 
 
         fig.suptitle(
-            f"\n$N={format_sci(popsize)}$, $s={format_sci(selcoef)}$, $U_d={format_sci(mutrate)}$, $\\phi={format_sci(phi)}$"+
+            f"\n$N={format_sci(popsize)}$, $s={format_sci(selcoef)}$, $U_d={format_sci(mutrate)}$, $sigma={format_sci(sigma)}$,  $\\phi={format_sci(phi)}$"+
             f"\nMean Velocity={np.mean(group['velocity']):.4f} ± {np.std(group['velocity']):.4f}"+
             f", $n={len(group)}$ simulations"
         )

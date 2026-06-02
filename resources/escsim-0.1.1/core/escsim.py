@@ -24,20 +24,6 @@ def run_single_sim(cmd, sim_id, folder):
     if result.returncode != 0:
         print(f"[ERROR] Simulation {sim_id} failed with return code {result.returncode}.", file=sys.stderr)
         print(f"[ERROR] stderr: {result.stderr}", file=sys.stderr)
-
-    if is_tree_mode:
-        return {
-            "sim_id": sim_id,
-            "seed": args.get("seed"),
-            "is_tree": True,
-            "tmp_path": None,
-            "popsize": args.get("popsize"),
-            "selcoef": args.get("selcoef"),
-            "sigma": args.get("sigma"),
-            "mutrate": args.get("mutrate"),
-            "velocity": 0.0,
-            "profile": np.array([1.0])
-        }
         
     time, wave = parse_result(result.stderr)
 
@@ -93,9 +79,7 @@ def extract_args(args):
         elif arg == "-d":
             key_value = next(arg_iter)
             key, value = key_value.split("=")
-            if key == "WRITE_TREE":
-                    params["WRITE_TREE"] = value
-            elif key in ["popsize", "selcoef", "sigma", "mutrate", "seqlen", "burnin", "ending"]:
+            if key in ["popsize", "selcoef", "sigma", "mutrate", "seqlen", "burnin", "ending"]:
                 if key in ["popsize", "selcoef", "sigma", "mutrate"]:
                     params[key] = float(value)
                 else:
@@ -159,7 +143,6 @@ def run_external(seeds, folder, **kwargs):
     gens = kwargs.get("gens")
     jobs = kwargs.get("jobs")
     mode = kwargs.get("mode")
-    tree = kwargs.get("tree")
 
 
     # Double the gens if popsize is less or equal to 1000
@@ -178,9 +161,9 @@ def run_external(seeds, folder, **kwargs):
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     if mode == "n":
-        slim_script = os.path.join(script_dir, "escsim_normal.slim")
+        slim_script = os.path.join(script_dir, f"escsim_normal.slim")
     else:
-        slim_script = os.path.join(script_dir, "escsim.slim")
+        slim_script = os.path.join(script_dir, f"escsim.slim")
 
 
     sim_ids = []
@@ -197,9 +180,7 @@ def run_external(seeds, folder, **kwargs):
             "-d", f"seqlen={chrmlen}",
             "-d", f"burnin={burnin}",
             "-d", f"ending={gens}",
-            "-d", f"WRITE_TREE={tree}",
             "-d", f"OUTPUT_FOLDER='{folder}'",
-            "-d", f"SIM_ID={sid}",
             slim_script
         ]
         cmd_list.append(cmd)

@@ -9,6 +9,8 @@ core/__init__.py
 core/escsim.py
 core/escsim.slim
 core/escsim_normal.slim
+core/tree.slim
+core/tree_normal.slim
 escsim.egg-info/PKG-INFO
 escsim.egg-info/SOURCES.txt
 escsim.egg-info/dependency_links.txt
