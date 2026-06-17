@@ -1,9 +1,10 @@
 experiments:
 
-  intermediate_phi:
+  RMSE:
     pop_size: [5000]
     mut_rate: [0.006]
     sel_coef: [0.001]
+    s_fixed: [0.001]
 
 constants:
   CHRMLEN: 15000

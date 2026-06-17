@@ -1,6 +1,15 @@
 import math
 import re
 
+S_FIXED = config["experiments"]["RMSE"]["s_fixed"][0]
+
+# Helper to format sigma up to 15 decimals without trailing zero padding
+def clean_sigma(val):
+    # Formats to 15 decimals, then strips unnecessary right-side zeros
+    s = f"{float(val):.15f}".rstrip('0').rstrip('.')
+    # Handle edge case where it truncates to exactly '0' if the number was too small
+    return s if s != "" else "0"
+
 def get_mem_mb(wildcards):
     # wildcards.N is a string, convert to int
     n_val = int(wildcards.N)
@@ -10,29 +19,34 @@ def get_mem_mb(wildcards):
     else:
         return 100 * 1000  # 100 GB default
 
+
 def get_num_sim(wildcards):
     """
     Determine number of simulations from N, U and s.
+
+    Uses:
+    - wildcards.s if available
+    - otherwise global S_FIXED
     """
 
-    float_pattern = re.compile(
-        r"^-?\d*\.?\d+(?:[eE][+-]?\d+)?$"
-    )
+    float_pattern = re.compile(r"^-?\d*\.?\d+(?:[eE][+-]?\d+)?$")
 
-    # validate wildcards before conversion
-    for name in ["N", "U", "s"]:
-        value = getattr(wildcards, name)
-
+    def parse_float(name, value):
+        if value is None:
+            return None
         if not float_pattern.match(str(value)):
-            raise ValueError(
-                f"Invalid wildcard '{name}' = '{value}'"
-            )
+            raise ValueError(f"Invalid wildcard '{name}' = '{value}'")
+        return float(value)
 
-    N = float(wildcards.N)
-    U = float(wildcards.U)
-    s = float(wildcards.s)
+    # required
+    N = parse_float("N", getattr(wildcards, "N"))
+    U = parse_float("U", getattr(wildcards, "U"))
 
-    # avoid division by zero or tiny s
+    # optional: s may be missing
+    s_raw = getattr(wildcards, "s", None)
+    s = parse_float("s", s_raw) if s_raw is not None else S_FIXED
+
+    # safety check
     if s == 0:
         return 200
 
@@ -42,12 +56,12 @@ def get_num_sim(wildcards):
 
 escsim_outputs_fixed = [
     f"results/escsim/fixed/escsim_N{p['N']}_U{p['U']}_s{p['s']}.out"
-    for p in PARAM_COMBINATIONS
+    for p in FIXED_PARAM_COMBINATIONS
 ]
 
 escsim_outputs_normal = [
-    f"results/escsim/normal/escsim_N{p['N']}_U{p['U']}_s{p['s']}_sd{p['sigma']}.out"
-    for p in PARAM_COMBINATIONS
+    f"results/escsim/normal/escsim_N{p['N']}_U{p['U']}_s{p['s']}_sd{clean_sigma(p['sigma'])}.out"
+    for p in NORMAL_PARAM_COMBINATIONS
 ]
 
 rule escsim_run_fixed:
@@ -63,7 +77,7 @@ rule escsim_run_fixed:
     params:
         CHRMLEN=config["constants"]["CHRMLEN"],
         BURNIN=config["constants"]["BURNIN"],
-        w_val=get_num_sim
+        w_val=get_num_sim,
     threads: 16
     shadow: "minimal"
     resources:
@@ -97,23 +111,25 @@ rule escsim_summarize_fixed:
         escsim summarize \
             -i results/escsim/fixed \
             -o results/escsim_figures/fixed \
-            FIGURE_PDF 2>&1 | tee {log}
+            -m f FIGURE_PDF 2>&1 | tee {log}
         """
 
 rule escsim_run_normal:
     wildcard_constraints:
         N = r"\d+",
         U = r"[\deE.+-]+",
-        s = r"[\deE.+-]+"
-    output:
-        sim="results/escsim/normal/escsim_N{N}_U{U}_s{s}_sd{sigma}.out",
-        wave=temp("results/escsim/normal/wave_N{N}_U{U}_s{s}_sd{sigma}.out")
-    log:
-        "logs/escsim/normal/escsim_N{N}_U{U}_s{s}_sd{sigma}.log"
+        sigma = r"[\deE.+-]+"
     params:
         CHRMLEN=config["constants"]["CHRMLEN"],
         BURNIN=config["constants"]["BURNIN"],
-        w_val=get_num_sim
+        w_val=get_num_sim,
+        # Truncates to max 15 decimals, strips trailing zeros to preserve short values
+        sigma_formatted=lambda wc: f"{float(wc.sigma):.15f}".rstrip('0').rstrip('.')
+    output:
+        sim=f"results/escsim/normal/escsim_N{{N}}_U{{U}}_s{S_FIXED}_sd{{sigma}}.out",
+        wave=temp(f"results/escsim/normal/wave_N{{N}}_U{{U}}_s{S_FIXED}_sd{{sigma}}.out")
+    log:
+        f"logs/escsim/normal/escsim_N{{N}}_U{{U}}_s{S_FIXED}_sd{{sigma}}.log"
     threads: 16
     shadow: "minimal"
     resources:
@@ -126,7 +142,7 @@ rule escsim_run_normal:
             -m n \
             -w {params.w_val} \
             -j 16 \
-            {wildcards.N} {wildcards.s} {wildcards.U} {wildcards.sigma} \
+            {wildcards.N} {S_FIXED} {wildcards.U} {params.sigma_formatted} \
             {params.CHRMLEN} {params.BURNIN} 2>&1 | tee {log}
         """
 
@@ -147,5 +163,5 @@ rule escsim_summarize_normal:
         escsim summarize \
             -i results/escsim/normal \
             -o results/escsim_figures/normal \
-            FIGURE_PDF 2>&1 | tee {log}
+            -m n FIGURE_PDF 2>&1 | tee {log}
         """

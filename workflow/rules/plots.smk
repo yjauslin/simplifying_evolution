@@ -1,21 +1,21 @@
 density_outputs_fixed = [
-    f"results/coalescent_densities/N{p['N']}_U{p['U']}_s{p['s']}.out"
-    for p in PARAM_COMBINATIONS
+    f"results/coalescent_densities/fixed/N{p['N']}_U{p['U']}_s{p['s']}.out"
+    for p in FIXED_PARAM_COMBINATIONS
 ]
 
 density_outputs_normal = [
-    f"results/coalescent_densities/N{p['N']}_U{p['U']}_s{p['s']}_sd{p['sigma']}.out"
-    for p in PARAM_COMBINATIONS
-]
+    f"results/coalescent_densities/normal/N{p['N']}_U{p['U']}_s{p['s']}_sd{clean_sigma(p['sigma'])}.out"
+    for p in NORMAL_PARAM_COMBINATIONS
+    ]
 
 wave_outputs_fixed = [
     f"results/escsim_figures/fixed/wave_summary_N{p['N']}_U{p['U']}_s{p['s']}.pdf"
-    for p in PARAM_COMBINATIONS
+    for p in FIXED_PARAM_COMBINATIONS
 ]
 
 wave_outputs_normal = [
     f"results/escsim_figures/normal/wave_summary_N{p['N']}_U{p['U']}_s{p['s']}_sd{p['sigma']}.pdf"
-    for p in PARAM_COMBINATIONS
+    for p in NORMAL_PARAM_COMBINATIONS
 ] 
 
 rule visualize_wave_fixed:
@@ -28,7 +28,7 @@ rule visualize_wave_fixed:
     output:
         pdf = "results/escsim_figures/fixed/wave_summary_N{N}_U{U}_s{s}.pdf"
     log:
-        "logs/visualize_wave_fixed_N{N}_U{U}_s{s}.log"
+        "logs/visualize_wave/fixed/N{N}_U{U}_s{s}.log"
     params:
     resources:
         mem_mb = 12 * 1000,
@@ -52,7 +52,7 @@ rule visualize_wave_normal:
     output:
         pdf = "results/escsim_figures/normal/wave_summary_N{N}_U{U}_s{s}_sd{sigma}.pdf"
     log:
-        "logs/visualize_wave_fixed_N{N}_U{U}_s{s}_sd{sigma}.log"
+        "logs/visualize_wave/normal/N{N}_U{U}_s{s}_sd{sigma}.log"
     params:
     resources:
         mem_mb = 12 * 1000,

@@ -1,18 +1,17 @@
 name: coalescent_simulations
 channels:
-  - conda-forge
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main
-  - _openmp_mutex=4.5=20_gnu
+  - _openmp_mutex=5.1=52_gnu
   - bzip2=1.0.8=h5eee18b_6
   - ca-certificates=2026.5.14=h06a4308_0
+  - conda-forge::tskit=1.0.3
   - ld_impl_linux-64=2.44=h9e0c5a2_3
   - libexpat=2.8.0=h7354ed3_0
   - libffi=3.4.8=hc5d346e_2
   - libgcc=15.2.0=h69a1729_8
   - libgcc-ng=15.2.0=h166f726_8
-  - libgomp=15.2.0=h4751f2c_8
   - libmpdec=4.0.0=h5eee18b_0
   - libstdcxx=15.2.0=h39759b7_8
   - libstdcxx-ng=15.2.0=hc03a8fd_8
@@ -109,11 +108,9 @@ dependencies:
     - throttler==1.2.3
     - tqdm==4.67.3
     - traitlets==5.15.0
-    - tskit==1.0.3
     - typing-extensions==4.15.0
     - typing-inspection==0.4.2
     - tzdata==2026.2
     - urllib3==2.7.0
     - wrapt==2.2.0
     - yte==1.9.4
-prefix: /home/yjauslin/.conda/envs/coalescent_simulations

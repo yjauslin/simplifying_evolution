@@ -74,7 +74,7 @@ def main():
 @click.option('--workers', '-w', default=1, help='Maximum number of worker processes')
 @click.option('--folder', '-f', default='tmp/results', help='Output folder for simulation results; will use existing simulations if found (default: tmp/results)')
 @click.option('--mode', '-m', default='f', help='Determines whether to run forward simulations with a fixed selection coefficient (f), ' \
-'a normally distributed selection coefficient with mean and standard deviation (n) or one drawn out of discrete bins (d)')
+'or a normally distributed selection coefficient with mean and standard deviation (n)')
 def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, folder, mode):
     """Run evolution simulations.
     
@@ -141,7 +141,10 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
     
     with open(escsim_file, 'w') as f_esc, open(wave_file, 'w') as f_wave:
         # Write header
-        header_esc = ["sim_id", "seed", "popsize", "selcoef", "sigma", "mutrate", "velocity", "profile"]
+        if mode == "n":
+            header_esc = ["sim_id", "seed", "popsize", "selcoef", "sigma", "mutrate", "velocity", "profile"]
+        else:
+            header_esc = ["sim_id", "seed", "popsize", "selcoef", "mutrate", "velocity", "profile"]
         header_wave = ["time", "wave"]
         
         f_esc.write("\t".join(header_esc) + "\n")
@@ -153,17 +156,27 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
             # 1. Write metadata to escsim
             profile_str = ",".join(map(str, res["profile"]))
             
-            line_esc = [
-            str(res["sim_id"]),
-            str(res["seed"]),
-            str(res["popsize"]),
-            str(res["selcoef"]),
-            str(res["sigma"]),
-            str(res["mutrate"]),
-            f"{res['velocity']:.6f}", # Format float for readability
-            profile_str
-        ]
-
+            if mode == "n":
+                line_esc = [
+                str(res["sim_id"]),
+                str(res["seed"]),
+                str(res["popsize"]),
+                str(res["selcoef"]),
+                str(res["sigma"]),
+                str(res["mutrate"]),
+                f"{res['velocity']:.6f}", # Format float for readability
+                profile_str
+                ]
+            else:
+                line_esc = [
+                str(res["sim_id"]),
+                str(res["seed"]),
+                str(res["popsize"]),
+                str(res["selcoef"]),
+                str(res["mutrate"]),
+                f"{res['velocity']:.6f}", # Format float for readability
+                profile_str
+                ]
             f_esc.write("\t".join(line_esc) + "\n")
         
             # 2. Stream wave data line-by-line
@@ -204,7 +217,9 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
 @click.option('--input_folder', '-i', default='tmp/results', help='Folder containing simulation results')
 @click.option('--output', '-o', default='results/escsim_figures', help='Output folder for figures')
 @click.option('--no-sep-sumplot', '-n', is_flag=True, help='Do not create separate summary plot for mean velocities')
-def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
+@click.option('--mode', '-m', default='f', help='Determines whether forward simulations were run with a fixed selection coefficient (f), ' \
+'or a normally distributed selection coefficient with mean and standard deviation (n)')
+def summarize(figure_pdf, input_folder, output, no_sep_sumplot, mode):
     """Plot and summarize simulation results."""
     matplotlib.use('agg')  # Use non-interactive backend
     click.echo(f"[INFO] Plotting results from folder: {input_folder}")
@@ -214,7 +229,7 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
     # Get all files that have the form escsim_N{N}_U{U}_s{s}.out
     num = r"\d+(?:\.\d+)?(?:e-?\d+)?"
     sim_files = [f for f in os.listdir(input_folder)
-                 if re.match(rf"escsim_N\d+_U{num}_s{num}_sigma{num}\.out",
+                 if re.match(rf"escsim_N\d+_U{num}_s{num}(?:_sd{num})?\.out",
                  f)]
     click.echo(f"[INFO] Found {len(sim_files)} simulation result file(s).")
     df_list = []
@@ -236,13 +251,16 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
     ## Summarize all mean velocities into one figure
     sns.set(style="ticks", context="paper")
     fig, ax = plt.subplots(figsize=(8, 6))
-
-    velocity_summary = df.groupby(["popsize", "selcoef", "mutrate", "sigma"])['velocity'].agg(['mean', 'std', 'count']).reset_index()
+    if mode == "n":
+        velocity_summary = df.groupby(["popsize", "selcoef", "mutrate", "sigma"])['velocity'].agg(['mean', 'std', 'count']).reset_index()
+        velocity_summary["Sigma"] = velocity_summary['sigma'].apply(lambda x: format_sci(x))
+    else:
+        velocity_summary = df.groupby(["popsize", "selcoef", "mutrate"])['velocity'].agg(['mean', 'std', 'count']).reset_index()
     velocity_summary["Ns"] = velocity_summary['popsize'] * velocity_summary['selcoef']
     velocity_summary["lineid"] = velocity_summary.apply(lambda row: f"$N={format_sci(row['popsize'])}$, $U_d={format_sci(row['mutrate'])}$", axis=1)
     velocity_summary["Popsize $N$"] = velocity_summary['popsize'].apply(lambda x: format_sci(x))
     velocity_summary["Mutation rate $U_d$"] = velocity_summary['mutrate'].apply(lambda x: format_sci(x))
-    velocity_summary["Sigma"] = velocity_summary['sigma'].apply(lambda x: format_sci(x))
+    
 
 
     # As the x scale will be log, make the zero to be on the xlimits as if it weren't zero
@@ -323,12 +341,21 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
 
     ## Figure logic of individual parameter combinations
     # Loop through the unique parameter combinations
-    param_cols = ['popsize', 'selcoef', 'mutrate', 'sigma']
-    df_sorted = df.sort_values(by=['popsize', 'mutrate', 'selcoef', 'sigma'], ascending=[False, False, False, False])
+    if mode == "n":
+        param_cols = ['popsize', 'selcoef', 'mutrate', 'sigma']
+        df_sorted = df.sort_values(by=['popsize', 'mutrate', 'selcoef', 'sigma'], ascending=[False, False, False, False])
+    else:
+        param_cols = ['popsize', 'selcoef', 'mutrate']
+        df_sorted = df.sort_values(by=['popsize', 'mutrate', 'selcoef'], ascending=[False, False, False])
     grouped = df_sorted.groupby(param_cols, sort=False)
     for params, group in grouped:
-        popsize, selcoef, mutrate, sigma = params
-        click.echo(f"[INFO] Plotting for parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}, sigma={sigma}")
+        if mode == "n":
+            popsize, selcoef, mutrate, sigma = params
+            click.echo(f"[INFO] Plotting for parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}, sigma={sigma}")
+        else:
+            popsize, selcoef, mutrate = params
+            click.echo(f"[INFO] Plotting for parameters: popsize={popsize}, selcoef={selcoef}, mutrate={mutrate}")
+        
 
         # Calculate phi
         phi = calc_phi(popsize, selcoef, mutrate)
@@ -437,12 +464,18 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot):
         for i, axi in enumerate(axs.flat):
             axi.text(axi.get_xlim()[0]*0.9, axi.get_ylim()[1]*1.05, chr(65 + i), fontsize=12)
 
-
-        fig.suptitle(
-            f"\n$N={format_sci(popsize)}$, $s={format_sci(selcoef)}$, $U_d={format_sci(mutrate)}$, $sigma={format_sci(sigma)}$,  $\\phi={format_sci(phi)}$"+
-            f"\nMean Velocity={np.mean(group['velocity']):.4f} ± {np.std(group['velocity']):.4f}"+
-            f", $n={len(group)}$ simulations"
-        )
+        if mode == "n":
+            fig.suptitle(
+                f"\n$N={format_sci(popsize)}$, $s={format_sci(selcoef)}$, $U_d={format_sci(mutrate)}$, $sigma={format_sci(sigma)}$,  $\\phi={format_sci(phi)}$"+
+                f"\nMean Velocity={np.mean(group['velocity']):.4f} ± {np.std(group['velocity']):.4f}"+
+                f", $n={len(group)}$ simulations"
+            )
+        else:
+            fig.suptitle(
+                f"\n$N={format_sci(popsize)}$, $s={format_sci(selcoef)}$, $U_d={format_sci(mutrate)}$, $\\phi={format_sci(phi)}$"+
+                f"\nMean Velocity={np.mean(group['velocity']):.4f} ± {np.std(group['velocity']):.4f}"+
+                f", $n={len(group)}$ simulations"
+            )
         
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
         figures.append(fig)

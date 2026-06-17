@@ -63,8 +63,12 @@ def read_tree_file(path, prefix):
     Function to find all tree files with a given prefix and return their paths sorted by parameters.
     """
     file_info = []
-    for f in path.glob(f"{prefix}_*.txt"):
+    if prefix == "fixed":
+        files = [f for f in path.glob("*.txt") if "sd" not in f.name]
+    else:
+        files = [f for f in path.glob("*.txt") if "sd" in f.name]
 
+    for f in files:
         pop_size, mut_rate, sel_coef, sigma = parse_filename(f)
         file_info.append((f, pop_size, mut_rate, sel_coef, sigma))
 
@@ -229,19 +233,19 @@ def visualizing_densities(input_folder, output):
         df_fixed = pd.read_csv(file_fixed, sep="\t")
         df_normal = pd.read_csv(file_normal, sep="\t")
 
-        tree_fixed = pd.read_csv(tree_fixed, sep="\t")
-        tree_normal = pd.read_csv(tree_normal, sep="\t")
+        fixed_tree = pd.read_csv(tree_fixed, sep="\t")
+        normal_tree = pd.read_csv(tree_normal, sep="\t")
 
         fixed_tmrca_values = []
         normal_tmrca_values = []
 
-        for entry in tree_fixed['tmrca_list']:
+        for entry in fixed_tree['tmrca_list']:
             # Split the string by comma and convert each piece to a float
             # Use strip() to handle any accidental whitespace
             values = [float(x) for x in str(entry).split(',')]
             fixed_tmrca_values.extend(values)
 
-        for entry in tree_normal['tmrca_list']:
+        for entry in normal_tree['tmrca_list']:
             # Split the string by comma and convert each piece to a float
             # Use strip() to handle any accidental whitespace
             values = [float(x) for x in str(entry).split(',')]
@@ -277,7 +281,7 @@ def visualizing_densities(input_folder, output):
         # sns.histplot(fixed_tmrca_values, stat="density", bins=20, ax=axes1[i], label="WF_fixed", color = "grey", alpha=0.3)
         # sns.histplot(normal_tmrca_values, stat="density", bins=20, ax = axes1[i], label="WF_normal", color="#2ca02c", alpha=0.3)
         axes1[i].bar(bin_edges_f[:-1], simprobs_f, width=bin_widths_f, alpha=0.3, label="WF_fixed", color='#2ca02c', align="edge")
-        axes1[i].bar(bin_edges_n[:-1], simprobs_n, width=bin_widths_n, alpha=0.3, label="WF_normal", color='gray', align="edge")
+        axes1[i].bar(bin_edges_f[:-1], simprobs_n, width=bin_widths_f, alpha=0.3, label="WF_normal", color='gray', align="edge")
 
 
         # axes1[i].set_title(rf"N={pop_size}, U={mut_rate}, "

@@ -65,22 +65,34 @@ def write_file(pop_size, sel_coef, mut_rate, sigma, input_folder, output, mode):
 
     # Write results to output file
     with open(file_name, "w") as f:
-        header = ["popsize", "selcoef",
-                  "mutrate", "sigma",
-                  "velocity",
-                  "effective_pop_size",
-                  "density", "time"]
+        if mode == 'n':
+            header = ["popsize", "selcoef",
+                      "mutrate", "sigma",
+                      "velocity",
+                      "effective_pop_size",
+                      "density", "time"]
+        else:
+            header = ["popsize", "selcoef",
+                      "mutrate", "velocity",
+                      "effective_pop_size",
+                      "density", "time"]
+
         f.write("\t".join(header) + "\n")
 
         str_effective_pop_size = ','.join(map(str, effective_pop_size))
         str_coalescent_densities = ','.join(map(str, coalescent_densities))
         str_t = ','.join(map(str, time_points))
-
-        line = [str(pop_size), str(sel_coef),
-                str(mut_rate), str(sigma),
-                str(velocity),
-                str_effective_pop_size,
-                str_coalescent_densities, str_t]
+        if mode == 'n':
+             line = [str(pop_size), str(sel_coef),
+                    str(mut_rate), str(sigma),
+                    str(velocity),
+                    str_effective_pop_size,
+                    str_coalescent_densities, str_t]
+        else:
+            line = [str(pop_size), str(sel_coef),
+                    str(mut_rate), str(velocity),
+                    str_effective_pop_size,
+                    str_coalescent_densities, str_t]
         f.write("\t".join(line) + "\n")
         click.echo(f"[INFO] Results saved to {file_name}")
 
