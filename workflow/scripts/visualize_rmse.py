@@ -10,7 +10,9 @@ import click
 @click.option('--output', '-o', type=str, required=True, help='Output folder')
 def visualize_rmse(input, output):
     filename_without_ext = os.path.splitext(os.path.basename(input))[0]
+
     output_filename = f"{filename_without_ext}.jpg"
+
 
     df = pd.read_csv(input, sep='\t')
 
@@ -19,10 +21,10 @@ def visualize_rmse(input, output):
     fig, ax = plt.subplots(figsize=(10, 6))
 
     sns.scatterplot(x='s', y='RMSE', data=df, ax=ax, label='RMSE')
-    sns.scatterplot(x='s', y='T', data=df, ax=ax, label='Max T')
+    sns.scatterplot(x='s', y='Kolmogorov', data=df, ax=ax, label='Kolmogorov Smirnov')
 
     plt.xlabel('selection coefficient')
-    plt.ylabel('RMSE / max T')
+    plt.ylabel('RMSE / max |D|')
     plt.xticks(rotation=45)
     plt.tight_layout()
 
