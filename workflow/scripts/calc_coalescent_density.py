@@ -11,6 +11,19 @@ import numpy as np
 import pandas as pd
 import click
 
+def format_fs_flat(value):
+    v = float(value)
+
+    if v == 0:
+        return "0.0"
+
+    # keep 15 decimals but avoid scientific drift, then strip zeros
+    s = f"{v:.15f}".rstrip('0').rstrip('.')
+
+    # ensure at least one decimal for consistency
+    return s if '.' in s else s + ".0"
+
+
 @click.command()
 @click.argument('pop_size', type=int)
 @click.argument('sel_coef', type=float)
@@ -59,9 +72,9 @@ def write_file(pop_size, sel_coef, mut_rate, sigma, input_folder, output, mode):
         click.echo("[INFO] Created output folder.")
     
     if mode == 'n':
-        file_name = os.path.join(output, f"N{pop_size}_U{mut_rate}_s{sel_coef}_sd{sigma}.out")
+        file_name = os.path.join(output, f"N{pop_size}_U{format_fs_flat(mut_rate)}_s{format_fs_flat(sel_coef)}_sd{format_fs_flat(sigma)}.out")
     else:
-        file_name = os.path.join(output, f"N{pop_size}_U{mut_rate}_s{sel_coef}.out")
+        file_name = os.path.join(output, f"N{pop_size}_U{format_fs_flat(mut_rate)}_s{format_fs_flat(sel_coef)}.out")
 
     # Write results to output file
     with open(file_name, "w") as f:

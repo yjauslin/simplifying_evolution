@@ -41,6 +41,17 @@ def format_sci(value):
         return "0"
     return f"{mantissa_str} \\cdot 10^{{{exponent}}}"
 
+def format_fs_flat(value):
+    v = float(value)
+
+    if v == 0:
+        return "0.0"
+
+    # keep 15 decimals but avoid scientific drift, then strip zeros
+    s = f"{v:.15f}".rstrip('0').rstrip('.')
+
+    # ensure at least one decimal for consistency
+    return s if '.' in s else s + ".0"
 
 def print_version(ctx, param, value):
     """Callback to print version and exit."""
@@ -131,12 +142,13 @@ def run(popsize, selcoef, sigma, mutrate, chrmlen, burnin, gens, jobs, workers, 
     # Write to output folder (Folder name should be escsim_YYYY-MM-DD_rndomstr.out)
     # date = datetime.datetime.now().strftime('%Y-%m-%d')
     # rndstr = hashlib.md5(''.join(map(str, seeds)).encode()).hexdigest()[:8]
+    # Establish uniform filenames explicitly using the flat 15-decimal structure
     if mode == "n":
-        escsim_file = os.path.join(folder, f"escsim_N{int(popsize)}_U{mutrate}_s{selcoef}_sd{sigma}.out")
-        wave_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}_sd{sigma}.out")
+        escsim_file = os.path.join(folder, f"escsim_N{int(popsize)}_U{format_fs_flat(mutrate)}_s{format_fs_flat(selcoef)}_sd{format_fs_flat(sigma)}.out")
+        wave_file = os.path.join(folder, f"wave_N{int(popsize)}_U{format_fs_flat(mutrate)}_s{format_fs_flat(selcoef)}_sd{format_fs_flat(sigma)}.out")
     else:
-        escsim_file = os.path.join(folder, f"escsim_N{int(popsize)}_U{mutrate}_s{selcoef}.out")
-        wave_file = os.path.join(folder, f"wave_N{int(popsize)}_U{mutrate}_s{selcoef}.out")
+        escsim_file = os.path.join(folder, f"escsim_N{int(popsize)}_U{format_fs_flat(mutrate)}_s{format_fs_flat(selcoef)}.out")
+        wave_file = os.path.join(folder, f"wave_N{int(popsize)}_U{format_fs_flat(mutrate)}_s{format_fs_flat(selcoef)}.out")
 
     
     with open(escsim_file, 'w') as f_esc, open(wave_file, 'w') as f_wave:
@@ -227,10 +239,9 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot, mode):
     # Get all files that have the form escsim_YYYY-MM-DD_*.out
     # sim_files = [f for f in os.listdir(input_folder) if re.match(r"escsim_\d{4}-\d{2}-\d{2}_.+\.out", f)]
     # Get all files that have the form escsim_N{N}_U{U}_s{s}.out
-    num = r"\d+(?:\.\d+)?(?:e-?\d+)?"
-    sim_files = [f for f in os.listdir(input_folder)
-                 if re.match(rf"escsim_N\d+_U{num}_s{num}(?:_sd{num})?\.out",
-                 f)]
+    num_regex = r"\d+(?:\.\d+)?"
+    sim_files = [f for f in os.listdir(input_folder) 
+    if re.match(rf"escsim_N\d+_U{num_regex}_s{num_regex}(?:_sd{num_regex})?\.out", f)]
     click.echo(f"[INFO] Found {len(sim_files)} simulation result file(s).")
     df_list = []
     for _, sim_file in enumerate(sim_files):

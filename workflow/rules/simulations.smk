@@ -1,14 +1,8 @@
 import math
 import re
 
-S_FIXED = config["experiments"]["RMSE"]["s_fixed"][0]
-
-# Helper to format sigma up to 15 decimals without trailing zero padding
-def clean_sigma(val):
-    # Formats to 15 decimals, then strips unnecessary right-side zeros
-    s = f"{float(val):.15f}".rstrip('0').rstrip('.')
-    # Handle edge case where it truncates to exactly '0' if the number was too small
-    return s if s != "" else "0"
+# Fallback definition for custom math helper logic if 's' wildcard is omitted
+S_FIXED = config["experiments"]["U_eff"]["sel_coef"][0]
 
 def get_mem_mb(wildcards):
     # wildcards.N is a string, convert to int
@@ -48,21 +42,11 @@ def get_num_sim(wildcards):
 
     # safety check
     if s == 0:
-        return 200
+        return config["constants"]["ESTIMATE_N_SIM"]
 
     phi = N * s * math.exp(-U / s)
 
-    return 100 if phi > 1 else 200
-
-escsim_outputs_fixed = [
-    f"results/escsim/fixed/escsim_N{p['N']}_U{p['U']}_s{p['s']}.out"
-    for p in FIXED_PARAM_COMBINATIONS
-]
-
-escsim_outputs_normal = [
-    f"results/escsim/normal/escsim_N{p['N']}_U{p['U']}_s{p['s']}_sd{clean_sigma(p['sigma'])}.out"
-    for p in NORMAL_PARAM_COMBINATIONS
-]
+    return 100 if phi > 1 else config["constants"]["ESTIMATE_N_SIM"]
 
 rule escsim_run_fixed:
     wildcard_constraints:
@@ -78,7 +62,7 @@ rule escsim_run_fixed:
         CHRMLEN=config["constants"]["CHRMLEN"],
         BURNIN=config["constants"]["BURNIN"],
         w_val=get_num_sim,
-    threads: 16
+    threads: 20
     shadow: "minimal"
     resources:
         mem_mb=get_mem_mb,        
@@ -89,14 +73,17 @@ rule escsim_run_fixed:
             -f results/escsim/fixed \
             -m f \
             -w {params.w_val} \
-            -j 16 \
+            -j {threads} \
             {wildcards.N} {wildcards.s} {wildcards.U} \
             {params.CHRMLEN} {params.BURNIN} 2>&1 | tee {log}
         """
 
 rule escsim_summarize_fixed:
     input:
-        escsim_outputs_fixed
+        # OPTIMIZATION: Relies on localized sub-DAG batch execution triggers 
+        # instead of loading global wildcard string arrays into master memory
+        "results/markers/escsim_run_s_eff_fixed.done",
+        "results/markers/escsim_run_U_eff_fixed.done"
     output:
         "results/escsim_figures/fixed/FIGURE_PDF.pdf",
         "results/escsim_figures/fixed/FIGURE_PDF_mean_velocity_summary.pdf"
@@ -118,19 +105,18 @@ rule escsim_run_normal:
     wildcard_constraints:
         N = r"\d+",
         U = r"[\deE.+-]+",
+        s = r"[\deE.+-]+",
         sigma = r"[\deE.+-]+"
     params:
         CHRMLEN=config["constants"]["CHRMLEN"],
         BURNIN=config["constants"]["BURNIN"],
         w_val=get_num_sim,
-        # Truncates to max 15 decimals, strips trailing zeros to preserve short values
-        sigma_formatted=lambda wc: f"{float(wc.sigma):.15f}".rstrip('0').rstrip('.')
     output:
-        sim=f"results/escsim/normal/escsim_N{{N}}_U{{U}}_s{S_FIXED}_sd{{sigma}}.out",
-        wave=temp(f"results/escsim/normal/wave_N{{N}}_U{{U}}_s{S_FIXED}_sd{{sigma}}.out")
+        sim=f"results/escsim/normal/escsim_N{{N}}_U{{U}}_s{{s}}_sd{{sigma}}.out",
+        wave=temp("results/escsim/normal/wave_N{N}_U{U}_s{s}_sd{sigma}.out")
     log:
-        f"logs/escsim/normal/escsim_N{{N}}_U{{U}}_s{S_FIXED}_sd{{sigma}}.log"
-    threads: 16
+        f"logs/escsim/normal/escsim_N{{N}}_U{{U}}_s{{s}}_sd{{sigma}}.log"
+    threads: 20
     shadow: "minimal"
     resources:
         mem_mb=get_mem_mb,        
@@ -141,14 +127,15 @@ rule escsim_run_normal:
             -f results/escsim/normal \
             -m n \
             -w {params.w_val} \
-            -j 16 \
-            {wildcards.N} {S_FIXED} {wildcards.U} {params.sigma_formatted} \
+            -j {threads} \
+            {wildcards.N} {wildcards.s} {wildcards.U} {wildcards.sigma} \
             {params.CHRMLEN} {params.BURNIN} 2>&1 | tee {log}
         """
 
 rule escsim_summarize_normal:
     input:
-        escsim_outputs_normal
+        "results/markers/escsim_run_s_eff_normal.done",
+        "results/markers/escsim_run_U_eff_normal.done"
     output:
         "results/escsim_figures/normal/FIGURE_PDF.pdf",
         "results/escsim_figures/normal/FIGURE_PDF_mean_velocity_summary.pdf"
@@ -165,3 +152,65 @@ rule escsim_summarize_normal:
             -o results/escsim_figures/normal \
             -m n FIGURE_PDF 2>&1 | tee {log}
         """
+
+# ==============================================================================
+# BATCH MARKER AGGREGATIONS (Prevents Master DAG Memory Bloat)
+# ==============================================================================
+
+rule gather_escsim_run_s_eff_fixed:
+    input:
+        expand(
+            "results/escsim/fixed/escsim_N{N}_U{U}_s{s}.out",
+            zip,
+            N=exp_data["s_eff"]["fixed"]["N"],
+            U=exp_data["s_eff"]["fixed"]["U"],
+            s=exp_data["s_eff"]["fixed"]["s"],
+        )
+    output:
+        "results/markers/escsim_run_s_eff_fixed.done"
+    shell:
+        "touch {output}"
+
+rule gather_escsim_run_U_eff_fixed:
+    input:
+        expand(
+            "results/escsim/fixed/escsim_N{N}_U{U}_s{s}.out",
+            zip,
+            N=exp_data["U_eff"]["fixed"]["N"],
+            U=exp_data["U_eff"]["fixed"]["U"],
+            s=exp_data["U_eff"]["fixed"]["s"],
+        )
+    output:
+        "results/markers/escsim_run_U_eff_fixed.done"
+    shell:
+        "touch {output}"
+
+rule gather_escsim_run_s_eff_normal:
+    input:
+        expand(
+            "results/escsim/normal/escsim_N{N}_U{U}_s{s}_sd{sigma}.out",
+            zip,
+            N=exp_data["s_eff"]["normal"]["N"],
+            U=exp_data["s_eff"]["normal"]["U"],
+            s=exp_data["s_eff"]["normal"]["s"],
+            sigma=exp_data["s_eff"]["normal"]["sigma"],
+        )
+    output:
+        "results/markers/escsim_run_s_eff_normal.done"
+    shell:
+        "touch {output}"
+
+rule gather_escsim_run_U_eff_normal:
+    input:
+        expand(
+            "results/escsim/normal/escsim_N{N}_U{U}_s{s}_sd{sigma}.out",
+            zip,
+            N=exp_data["U_eff"]["normal"]["N"],
+            U=exp_data["U_eff"]["normal"]["U"],
+            s=exp_data["U_eff"]["normal"]["s"],
+            sigma=exp_data["U_eff"]["normal"]["sigma"],
+        )
+    output:
+        "results/markers/escsim_run_U_eff_normal.done"
+    shell:
+        "touch {output}"

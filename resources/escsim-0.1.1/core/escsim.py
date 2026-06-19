@@ -16,7 +16,7 @@ def run_single_sim(cmd, sim_id, folder):
     
     # get args from result
     args = extract_args(result.args)
-    mutrate = args.get("mutrate")
+    mutrate = float(args.get("mutrate"))
 
     # Check if tree mode was ON
     is_tree_mode = args.get("WRITE_TREE") == "T"
@@ -134,14 +134,14 @@ def run_external(seeds, folder, **kwargs):
         if not isinstance(seed, int):
             raise ValueError("Each seed must be an integer.")
         
-    popssize = kwargs.get("popsize")
-    selcoef = kwargs.get("selcoef")
-    mutrate = kwargs.get("mutrate")
-    sigma = kwargs.get("sigma")
-    chrmlen = kwargs.get("chrmlen")
-    burnin = kwargs.get("burnin")
-    gens = kwargs.get("gens")
-    jobs = kwargs.get("jobs")
+    popssize = float(kwargs.get("popsize"))
+    selcoef = float(kwargs.get("selcoef"))
+    mutrate = float(kwargs.get("mutrate"))
+    sigma = float(kwargs.get("sigma")) if kwargs.get("sigma") is not None else 0.0
+    chrmlen = int(kwargs.get("chrmlen")) if kwargs.get("chrmlen") is not None else 15000
+    burnin = int(kwargs.get("burnin")) if kwargs.get("burnin") is not None else int(popssize)
+    gens = int(kwargs.get("gens")) if kwargs.get("gens") is not None else int(popssize) * 2
+    jobs = int(kwargs.get("jobs"))
     mode = kwargs.get("mode")
 
 
@@ -173,16 +173,16 @@ def run_external(seeds, folder, **kwargs):
         cmd = [
             "slim",
             "-seed", str(s),
-            "-d", f"popsize={popssize}",
-            "-d", f"selcoef={selcoef}",
-            "-d", f"sigma={sigma}",
-            "-d", f"mutrate={mutrate}",
+            "-d", f"popsize={int(popssize)}",
+            "-d", f"selcoef={float(selcoef)}",
+            "-d", f"sigma={sigma:.15f}",   # Forces clean standard float text
+            "-d", f"mutrate={mutrate:.15f}", # Forces clean standard float text
             "-d", f"seqlen={chrmlen}",
             "-d", f"burnin={burnin}",
             "-d", f"ending={gens}",
             "-d", f"OUTPUT_FOLDER='{folder}'",
             slim_script
-        ]
+            ]
         cmd_list.append(cmd)
         sim_ids.append(sid)
 

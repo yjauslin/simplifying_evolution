@@ -6,7 +6,8 @@ from scipy.integrate import cumulative_trapezoid
 import glob
 
 @click.command()
-@click.argument('input_fixed', nargs=-1, required=True)
+@click.option('--input_fixed', '-i_f', required=True,
+              help='Space-separated paths to fixed parameter density files.')
 @click.option('--input_normal', '-i_n', required=True,
               help='Path to sd (normal) coalescent density file.')
 @click.option('--output', '-o', required=True,
@@ -15,6 +16,7 @@ import glob
               help='If false calculates effective selection coefficient. If true calculates effective mutation rate.')
 def compare_distributions(input_fixed, input_normal, output, type):
     os.makedirs(output, exist_ok=True)
+    click.echo(input_fixed)
 
     df_normal = pd.read_csv(input_normal, sep="\t")
 
@@ -30,11 +32,13 @@ def compare_distributions(input_fixed, input_normal, output, type):
 
     cdf_normal = cumulative_trapezoid(density_normal, time, initial=0)
 
-    click.echo(f"Got {len(input_fixed)} files to compare.")
+    file_list = [f.strip() for f in input_fixed.split(" ") if f.strip()]
+    
+    click.echo(f"Got {len(file_list)} files to compare.")
 
 
-    for f in input_fixed:
-        df_fixed = pd.read_csv(f, sep="\t")
+    for file_path in file_list:
+        df_fixed = pd.read_csv(file_path, sep="\t")
 
         sel_coef = df_fixed["selcoef"].iloc[0]
         mut_rate = df_fixed["mutrate"].iloc[0]
@@ -59,10 +63,10 @@ def compare_distributions(input_fixed, input_normal, output, type):
                 f"s_N{pop_size}_U{mut_rate_normal}_s{sel_coef_normal}_sd{sigma}.txt"
             )
 
-        with open(output_file, "a") as f:
-            if f.tell() == 0:
-                f.write("s\tU\tRMSE\tKolmogorov\n")
-            f.write(f"{sel_coef}\t{mut_rate}\t{rmse}\t{max_d}\n")
+        with open(output_file, "a") as file:
+            if file.tell() == 0:
+                file.write("s\tU\tRMSE\tKolmogorov\n")
+            file.write(f"{sel_coef}\t{mut_rate}\t{rmse}\t{max_d}\n")
         click.echo("Comparison file saved to: " + output_file)
 
 

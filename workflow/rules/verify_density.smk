@@ -1,14 +1,3 @@
-frequency_outputs_fixed = [
-    f"results/coalescent_densities/fixed/N{p['N']}_U{p['U']}_s{p['s']}.txt"
-    for p in FIXED_PARAM_COMBINATIONS
-]
-
-frequency_outputs_normal = [
-    f"results/coalescent_densities/normal/N{p['N']}_U{p['U']}_s{p['s']}_sd{p['sigma']:.1e}.txt"
-    for p in NORMAL_PARAM_COMBINATIONS
-]
-
-
 rule generate_trees_fixed:
     input:
         "workflow/scripts/tree.slim"
@@ -109,7 +98,7 @@ rule generate_coalescent_frequencies_normal:
     log:
         "logs/frequencies/normal/N{N}_U{U}_s{s}_sigma{sigma}.log"
     params:
-        n_iter=config["constants"]["N_SIM"],
+        n_sim=config["constants"]["N_SIM"],
         n_sam=config["constants"]["N_SAM"]
     resources:
         mem_mb = 10 * 1000,
@@ -121,7 +110,53 @@ rule generate_coalescent_frequencies_normal:
         -t N{wildcards.N}_U{wildcards.U}_s{wildcards.s}_sd{wildcards.sigma} \
         -i results/trees/normal_N{wildcards.N}_U{wildcards.U}_s{wildcards.s}_sd{wildcards.sigma}/ \
         -o results/coalescent_densities/normal \
-        {params.n_iter} {params.n_sam} 2>&1 | tee {log}
+        {params.n_sim} {params.n_sam} 2>&1 | tee {log}
         """
-        
 
+# ==============================================================================
+# BATCH MARKER AGGREGATIONS (Prevents Master DAG Memory Bloat)
+# ==============================================================================
+
+rule gather_coalescent_frequencies_fixed:
+    input:
+        s_eff_files = expand(
+            "results/coalescent_densities/fixed/N{N}_U{U}_s{s}.txt",
+            zip,
+            N=exp_data["s_eff"]["fixed"]["N"],
+            U=exp_data["s_eff"]["fixed"]["U"],
+            s=exp_data["s_eff"]["fixed"]["s"]
+        ),
+        U_eff_files = expand(
+            "results/coalescent_densities/fixed/N{N}_U{U}_s{s}.txt",
+            zip,
+            N=exp_data["U_eff"]["fixed"]["N"],
+            U=exp_data["U_eff"]["fixed"]["U"],
+            s=exp_data["U_eff"]["fixed"]["s"]
+        )
+    output:
+        "results/markers/generate_coalescent_frequencies_fixed.done"
+    shell:
+        "touch {output}"
+
+rule gather_coalescent_frequencies_normal:
+    input:
+        s_eff_files = expand(
+            "results/coalescent_densities/normal/N{N}_U{U}_s{s}_sd{sigma}.txt",
+            zip,
+            N=exp_data["s_eff"]["normal"]["N"],
+            U=exp_data["s_eff"]["normal"]["U"],
+            s=exp_data["s_eff"]["normal"]["s"],
+            sigma=exp_data["s_eff"]["normal"]["sigma"]
+        ),
+        U_eff_files = expand(
+            "results/coalescent_densities/normal/N{N}_U{U}_s{s}_sd{sigma}.txt",
+            zip,
+            N=exp_data["U_eff"]["normal"]["N"],
+            U=exp_data["U_eff"]["normal"]["U"],
+            s=exp_data["U_eff"]["normal"]["s"],
+            sigma=exp_data["U_eff"]["normal"]["sigma"]
+        )
+    output:
+        "results/markers/generate_coalescent_frequencies_normal.done"
+    shell:
+        "touch {output}"

@@ -56,7 +56,7 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
             u = mut_rate[i]
             input_file = os.path.join(
                 input_folder,
-                f"U_{pop_size}_U{u}_s{sel_coef[0]}.txt")
+                f"U_N{pop_size}_U{u}_s{sel_coef[0]}.txt")
             df = pd.read_csv(input_file, sep="\t")
 
             sns.scatterplot(x='sd/s', y='U', data=df, ax=ax, label=f'U={u}', color=colors[i])
