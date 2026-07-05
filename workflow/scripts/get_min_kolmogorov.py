@@ -19,40 +19,53 @@ import seaborn as sns
               help='If false calculates effective selection coefficient. If true calculates effective mutation rate.')
 
 def get_min_kolmogorov(pop_size, sel_coef, mut_rate, input_folder, output, type):
+    # Create output directory if it doesn't exist
     os.makedirs(output, exist_ok=True)
 
+    # Determine the prefix for the output file based on the type of comparison
     prefix = "s" if not type else "U"
 
+    # Construct the input file pattern based on the provided parameters
     input_file = os.path.join(
         input_folder,
         f"{prefix}_N{pop_size}_U{mut_rate}_s{sel_coef}_sd*.txt"
     )
 
+    # Use glob to find all files matching the input pattern
     files = glob.glob(input_file)
 
     if not files:
         click.echo("No files found for the given parameters.")
         return
 
+    # Construct the output file path
     output_file = os.path.join(output, f"{prefix}_N{pop_size}_U{mut_rate}_s{sel_coef}.txt")
 
     for f in files:
         df = pd.read_csv(f, sep="\t")
 
+        # Extract the standard deviation (sd) from the filename using regex
         match = re.search(r"_sd([0-9.eE+-]+)\.txt$", f)
         sd = float(match.group(1))
 
-
+        # Find the index of the minimum Kolmogorov value in the dataframe
         idx = df["Kolmogorov"].idxmin()
 
+        if pd.isna(idx):
+            click.echo(f"Warning: No valid numbers found in 'Kolmogorov' column for {f}. Skipping.")
+            continue
+
+        # Extract the minimum Kolmogorov value and corresponding selection coefficient and mutation rate
         min_kolmogorov = df.loc[idx, "Kolmogorov"]
         selection_coeff = df.loc[idx, "s"]
         mutation_rate = df.loc[idx, "U"]
 
-        with open(output_file, "a") as f:
-            if f.tell() == 0:
-                f.write("s\tsd\tsd/s\tU\tmin_Kolmogorov\n")
-            f.write(f"{selection_coeff}\t{sd}\t{sd/sel_coef}\t{mutation_rate}\t{min_kolmogorov}\n")
+        with open(output_file, "a") as f_out:
+            # Write header if the file is empty
+            if f_out.tell() == 0:
+                f_out.write("s\tsd\tsd/s\tU\tmin_Kolmogorov\n")
+            # Write the results to the output file
+            f_out.write(f"{selection_coeff}\t{sd}\t{sd/sel_coef}\t{mutation_rate}\t{min_kolmogorov}\n")
         click.echo(f"File saved to: {output_file}")
 
 if __name__ == "__main__":

@@ -80,8 +80,6 @@ rule escsim_run_fixed:
 
 rule escsim_summarize_fixed:
     input:
-        # OPTIMIZATION: Relies on localized sub-DAG batch execution triggers 
-        # instead of loading global wildcard string arrays into master memory
         "results/markers/escsim_run_s_eff_fixed.done",
         "results/markers/escsim_run_U_eff_fixed.done"
     output:
@@ -90,9 +88,9 @@ rule escsim_summarize_fixed:
     log:
         "logs/escsim_summarize_fixed.log"
     resources:
-        mem_mb=5*1000,        
-        runtime=60,
-    threads: 4
+        mem_mb=50*1000,        
+        runtime=4320,
+    threads: 20
     shell:
         """
         escsim summarize \
@@ -142,9 +140,9 @@ rule escsim_summarize_normal:
     log:
         "logs/escsim_summarize_normal.log"
     resources:
-        mem_mb=5*1000,        
-        runtime=60,
-    threads: 4
+        mem_mb=50*1000,        
+        runtime=4320,
+    threads: 20
     shell:
         """
         escsim summarize \

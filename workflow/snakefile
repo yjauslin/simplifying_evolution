@@ -37,4 +37,6 @@ rule all:
         "results/markers/wave_summary_s_eff_fixed.done",
         "results/markers/wave_summary_U_eff_fixed.done",
         "results/markers/wave_summary_s_eff_normal.done",
-        "results/markers/wave_summary_U_eff_normal.done"
+        "results/markers/wave_summary_U_eff_normal.done",
+        # "results/markers/visualize_comparisons_s.done",
+        # "results/markers/visualize_comparisons_U.done",

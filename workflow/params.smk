@@ -34,13 +34,13 @@ def get_clean_dataframes_by_experiment(config):
             for s in exp["s_normal"]:
                 s_values = np.linspace(exp["s_range"][0] * s, s, n_sel_coef)
                 for sel_coef in s_values:
-                    fixed_rows.append([pop_size, format_fs_flat(mut_rate), sel_coef])
+                    fixed_rows.append([pop_size, format_fs_flat(mut_rate), format_fs_flat(sel_coef)])
 
                 sigma_values = np.round(
                     np.linspace(sigma_range[0] * s, sigma_range[1] * s, n_sigma), 15
                 )
                 for sigma in sigma_values:
-                    normal_rows.append([pop_size, format_fs_flat(mut_rate), s, format_fs_flat(sigma)])
+                    normal_rows.append([pop_size, format_fs_flat(mut_rate), format_fs_flat(s), format_fs_flat(sigma)])
 
         elif exp_name == "U_eff":
             sel_coef = exp["sel_coef"][0]
@@ -51,13 +51,13 @@ def get_clean_dataframes_by_experiment(config):
                     n_sel_coef,
                 )
                 for mut_rate in U_values:
-                    fixed_rows.append([pop_size, format_fs_flat(mut_rate), sel_coef])
+                    fixed_rows.append([pop_size, format_fs_flat(mut_rate), format_fs_flat(sel_coef)])
 
                 sigma_values = np.round(
                     np.linspace(sigma_range[0] * sel_coef, sigma_range[1] * sel_coef, n_sigma), 15
                 )
                 for sigma in sigma_values:
-                    normal_rows.append([pop_size, format_fs_flat(U), sel_coef, format_fs_flat(sigma)])
+                    normal_rows.append([pop_size, format_fs_flat(U), format_fs_flat(sel_coef), format_fs_flat(sigma)])
 
         # Create, deduplicate, and store dataframes specifically for THIS experiment
         df_fixed = pd.DataFrame(fixed_rows, columns=["N", "U", "s"]).drop_duplicates().reset_index(drop=True)
