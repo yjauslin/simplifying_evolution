@@ -10,6 +10,8 @@ import pandas as pd
 import click
 import math
 
+from visualize_mut_burden_dist import parse_multiple_floats
+
 
 def parse_filename(path):
     """
@@ -32,7 +34,7 @@ def parse_filename(path):
 
     return pop_size, mut_rate, sel_coef, sigma
 
-def read_density_file(path, prefix):
+def read_density_file(path, prefix, pop_size=None, mut_rate=None, sel_coef=None, sigma=None):
     """
     Function to find all result files with a given prefix and return their paths sorted by parameters.
     """
@@ -40,13 +42,16 @@ def read_density_file(path, prefix):
 
     # Select files based on whether they contain 'sd'
     if prefix == "fixed":
-        files = [f for f in path.glob("*.out") if "sd" not in f.name]
+        for s in sel_coef:
+            for u in mut_rate:
+                file = path.glob(f"N{pop_size}_U{u}_s{s}.out")
+                file_info.append((file, pop_size, u, s, None))
     else:
-        files = [f for f in path.glob("*.out") if "sd" in f.name]
-
-    for f in files:
-        pop_size, mut_rate, sel_coef, sigma = parse_filename(f)
-        file_info.append((f, pop_size, mut_rate, sel_coef, sigma))
+        for s in sel_coef:
+            for u in mut_rate:
+                for sd in sigma:
+                    file = path.glob(f"N{pop_size}_U{u}_s{s}_sd{sd}.out")
+                    file_info.append((file, pop_size, u, s, sd))
 
     # Sort files
     if prefix == "fixed":
@@ -58,19 +63,22 @@ def read_density_file(path, prefix):
 
     return [x[0] for x in file_info]
 
-def read_tree_file(path, prefix):
+def read_tree_file(path, prefix, pop_size=None, mut_rate=None, sel_coef=None, sigma=None):
     """
     Function to find all tree files with a given prefix and return their paths sorted by parameters.
     """
     file_info = []
     if prefix == "fixed":
-        files = [f for f in path.glob("*.txt") if "sd" not in f.name]
+        for s in sel_coef:
+            for u in mut_rate:
+                file = path.glob(f"N{pop_size}_U{u}_s{s}.txt")
+                file_info.append((file, pop_size, u, s, None))
     else:
-        files = [f for f in path.glob("*.txt") if "sd" in f.name]
-
-    for f in files:
-        pop_size, mut_rate, sel_coef, sigma = parse_filename(f)
-        file_info.append((f, pop_size, mut_rate, sel_coef, sigma))
+        for s in sel_coef:
+            for u in mut_rate:
+                for sd in sigma:
+                    file = path.glob(f"N{pop_size}_U{u}_s{s}_sd{sd}.txt")
+                    file_info.append((file, pop_size, u, s, sd))
 
     # sort the files first by selection coefficient then sigma (if normal), population size and finally
     # mutation rate
@@ -99,6 +107,32 @@ def build_fixed_lookup(files):
             lookup[key] = f
 
     return lookup
+
+def get_effective_selection_coefficient(pop_size, sel_coef, mut_rate, sigma):
+    """
+    Returns the effective selection coefficient for a given population size, selection coefficient,
+    mutation rate, and standard deviation (sigma) by reading the corresponding results file.
+    """
+    df = pd.read_csv(f'results/min_values/s_eff/s_N{pop_size}_U{mut_rate}_s{sel_coef}.txt', sep="\t")
+    
+    mask = np.isclose(df['sd'], sigma)
+    if not mask.any():
+        raise ValueError(f"No matching sigma found for value: {sigma} in s_eff file.")
+        
+    return df.loc[mask, 's'].values[0]
+
+def get_effective_mutation_rate(pop_size, sel_coef, mut_rate, sigma):
+    """
+    Returns the effective mutation rate for a given population size, selection coefficient,
+    mutation rate, and standard deviation (sigma) by reading the corresponding results file.
+    """
+    df = pd.read_csv(f'results/min_values/U_eff/U_N{pop_size}_U{mut_rate}_s{sel_coef}.txt', sep="\t")
+
+    mask = np.isclose(df['sd'], sigma)
+    if not mask.any():
+        raise ValueError(f"No matching sigma found for value: {sigma} in U_eff file.")
+
+    return df.loc[mask, 'U'].values[0]
 
 def time_intervals(nsam=40, max_tmrca=2, popsize=1, include_0=True, include_inf=True):
     """
@@ -149,209 +183,270 @@ def to_latex_sci(val):
     return rf"{base} \times 10^{{{int(exponent)}}}"
 
 @click.command()
+@click.option('--pop-size', '-N', type=int, default=5000, required=False, help='Population size to match.')
+
+@click.option('--mut-rate', '-u', type=str, required=True, callback=parse_multiple_floats,
+              help='Comma-separated list of mutation rates.')
+
+@click.option('--sel-coef', '-s', type=str, required=True, callback=parse_multiple_floats,
+              help='Comma-separated list of selection coefficients.')
+@click.option('--sigma', '-sd', type=str, required=True, callback=parse_multiple_floats,
+              help='Comma-separated list of standard deviation / sigma values.')
 @click.option('--input_folder', '-i', default='results/coalescent_densities',
             help='Input folder for wave results from forward simulations'
             '(default: results/coalescent_densities)')
 @click.option('--output', '-o', default='results/escsim_figures',
               help='Output folder for wave plots summary file '
               '(default: results/escsim_figures)')
-
-def visualizing_densities(input_folder, output):
+def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, output):
     """
-    Takes results from forward simulations as input
-    and produces two PDF files visualizing the coalescent
-    densities and the effective population size.
+    Visualizes coalescent densities from fixed forward simulation results and the corresponding effective selection coefficients.
     """
-
-    # get path to results folder
+    # Get path to results folder
     results_folder = Path(input_folder)
 
-    files_fixed = read_density_file(results_folder, "fixed")
-    files_normal = read_density_file(results_folder, "normal")
+    sel_coef = list(sel_coef)
+    mut_rate = list(mut_rate)
 
-    tree_fixed = read_tree_file(results_folder, "fixed")
-    tree_normal = read_tree_file(results_folder, "normal")
+    # enforce mutual exclusivity, meaning: you cannot provide multiple selection coefficients and multiple mutation rates at the same time
+    if len(sel_coef) > 1 and len(mut_rate) > 1:
+        raise click.UsageError(
+            "You cannot provide multiple --sel_coef AND multiple --mut_rate at the same time."
+        )
 
-    # build lookup tables for fixed files to easily find matching files for normal files
-    fixed_density_lookup = build_fixed_lookup(files_fixed)
-    fixed_tree_lookup = build_fixed_lookup(tree_fixed)
+    if len(sel_coef) == 0 and len(mut_rate) == 0:
+        raise click.UsageError(
+            "You must provide at least one of --sel_coef or --mut_rate."
+        )
 
-    extended_files_fixed = []
-    extended_tree_fixed = []
+    # The number of rows is determined by whichever list has more entries
+    num_rows = max(len(sel_coef), len(mut_rate))
+    num_cols = len(sigma)
 
-    # loop through normal files and find matching fixed files based on parameters
-    for normal_file, normal_tree in zip(files_normal, tree_normal):
+    sns.set_context("paper")
+    sns.set_style("ticks")
 
-        pop_size, mut_rate, sel_coef, sigma = parse_filename(normal_file)
+    # Fig width corresponds to column width in LaTeX (72.27 points per inch)
+    fig_width = 426.79134 / 72.27  
+    fig_height = fig_width / 1.618
 
-        key = (pop_size, mut_rate, sel_coef)
-
-        if key not in fixed_density_lookup:
-            raise ValueError(f"No matching fixed density file for {key}")
-
-        if key not in fixed_tree_lookup:
-            raise ValueError(f"No matching fixed tree file for {key}")
-
-        extended_files_fixed.append(fixed_density_lookup[key])
-        extended_tree_fixed.append(fixed_tree_lookup[key])
-
-    if files_fixed is None:
-        click.echo("[INFO] No files with fixed selection coefficient found")
-    elif files_normal is None:
-        click.echo("[INFO] No files with normally distributed selection coefficient found")
-    elif tree_fixed is None:
-        click.echo("[INFO] No tree files with fixed selection coefficient found")
-    elif tree_normal is None:
-        click.echo("[INFO] No tree files with normally distributed selection coefficient found")
-
-    n = len(files_normal)
-
-    click.echo("[INFO] Starting visualization of coalescent densities"
-                " and effective population sizes")
+    fig, axes = plt.subplots(figsize=(fig_width, fig_height), sharey=False, nrows=num_rows, ncols=num_cols)
     
-    sns.set_context("talk")
-
-    ncols = 4
-    nrows = math.ceil(n / ncols)
-
-    figsize_scale = 1
-    # initializing result plot for coalescent densities
-    fig1, axes1 = plt.subplots(nrows, ncols, figsize=(4*ncols, 4*nrows), layout="constrained")
-    axes1 = axes1.flatten()
-
-    # initializing result plot for effective population sizes
-    fig2, axes2 = plt.subplots(nrows, ncols, figsize=(4*ncols, 4.5*nrows),
-                           sharey = "row", layout="constrained")
-    axes2 = axes2.flatten()
-
-    for i, (file_fixed, file_normal, tree_fixed, tree_normal) in enumerate(zip(extended_files_fixed,
-                                                                               files_normal,
-                                                                               extended_tree_fixed,
-                                                                               tree_normal)):
-
-        # reading in result file with simulation results and parameters
-        df_fixed = pd.read_csv(file_fixed, sep="\t")
-        df_normal = pd.read_csv(file_normal, sep="\t")
-
-        fixed_tree = pd.read_csv(tree_fixed, sep="\t")
-        normal_tree = pd.read_csv(tree_normal, sep="\t")
-
-        fixed_tmrca_values = []
-        normal_tmrca_values = []
-
-        for entry in fixed_tree['tmrca_list']:
-            # Split the string by comma and convert each piece to a float
-            # Use strip() to handle any accidental whitespace
-            values = [float(x) for x in str(entry).split(',')]
-            fixed_tmrca_values.extend(values)
-
-        for entry in normal_tree['tmrca_list']:
-            # Split the string by comma and convert each piece to a float
-            # Use strip() to handle any accidental whitespace
-            values = [float(x) for x in str(entry).split(',')]
-            normal_tmrca_values.extend(values)
-
-        pop_size = df_normal["popsize"].iloc[0]
-        mut_rate = df_normal["mutrate"].iloc[0]
-        sel_coef = df_normal["selcoef"].iloc[0]
-        sigma = df_normal["sigma"].iloc[0]
-
-        simprobs_f, bin_widths_f, bin_edges_f = calc_density(fixed_tmrca_values, pop_size=2*pop_size, tmax=3)
-        simprobs_n, bin_widths_n, bin_edges_n = calc_density(normal_tmrca_values, pop_size=2*pop_size, tmax=3)
-
-        density_fixed = np.array(df_fixed["density"].iloc[0].split(","), dtype=float)
-        density_normal = np.array(df_normal["density"].iloc[0].split(","), dtype = float)
-
-        density_fixed = density_fixed
-        density_normal = density_normal
-
-        effective_pop_size_fixed = np.array(df_fixed["effective_pop_size"].iloc[0].split(","), dtype=float)
-        effective_pop_size_normal = np.array(df_normal["effective_pop_size"].iloc[0].split(","), dtype=float)
-
-        time = np.array(df_fixed["time"].iloc[0].split(","), dtype=float)
-
-        # axes1[i].hist(fixed_tmrca_values, bins=30, density=True, alpha=0.3, label="WF_fixed", color='#2ca02c')
-        # axes1[i].hist(normal_tmrca_values, bins=30, density=True, alpha=0.3, label="WF_normal", color='gray')
-
-        # visualizing coalescent densities
-        sns.lineplot(x=time, y=density_fixed, ax=axes1[i], label="fixed", color='#1f77b4', lw = 2.5)
-        sns.lineplot(x=time, y=density_normal, ax=axes1[i], linestyle="--", label = "normal", color="orange", lw = 2.5)
-
-        # visualizing simulated densities as bar plots
-        # sns.histplot(fixed_tmrca_values, stat="density", bins=20, ax=axes1[i], label="WF_fixed", color = "grey", alpha=0.3)
-        # sns.histplot(normal_tmrca_values, stat="density", bins=20, ax = axes1[i], label="WF_normal", color="#2ca02c", alpha=0.3)
-        axes1[i].bar(bin_edges_f[:-1], simprobs_f, width=bin_widths_f, alpha=0.3, label="WF_fixed", color='#2ca02c', align="edge")
-        axes1[i].bar(bin_edges_f[:-1], simprobs_n, width=bin_widths_f, alpha=0.3, label="WF_normal", color='gray', align="edge")
-
-
-        # axes1[i].set_title(rf"N={pop_size}, U={mut_rate}, "
-        #                   rf"$s={to_latex_sci(sel_coef)}, "
-        #                   rf"\sigma={to_latex_sci(sigma)}$")
-        axes1[i].set_xlabel("Time (Generations)")
-        axes1[i].set_ylabel("Coalescent Density")
-        axes1[i].set_xlim(0, 13000)
-        axes1[i].text(0.98, 0.98,
-                      rf"$N={pop_size}$" "\n"
-                      rf"$U={mut_rate}$" "\n"
-                      rf"$s={to_latex_sci(sel_coef)}$" "\n"
-                      rf"$\sigma={to_latex_sci(sigma)}$",
-                      transform=axes1[i].transAxes,
-                      va="top",
-                      ha="right",
-                      fontsize=10
-                      )
-
-        # converting y-axis-ticks to scientific format
-        formatter = ScalarFormatter(useMathText=True)
-        formatter.set_scientific(True)
-        formatter.set_powerlimits((0, 0))
-
-        axes1[i].yaxis.set_major_formatter(formatter)
-
-        # visualizing effective population sizes
-        sns.lineplot(x=time, y=effective_pop_size_fixed, ax=axes2[i], label="fixed")
-        sns.lineplot(x=time, y=effective_pop_size_normal, ax=axes2[i], linestyle="--", label="normal")
-        # axes2[i].set_title(rf"N={pop_size}, U={mut_rate}, "
-        #                   rf"$s={to_latex_sci(sel_coef)}, "
-        #                   rf"\sigma={to_latex_sci(sigma)}$")
-        axes2[i].set_xlabel("Time (Generations)")
-        axes2[i].set_ylabel("Effective Population Size ($N_E$)")
-        axes2[i].text(0.98, 0.98,
-                      rf"$N={pop_size}$" "\n"
-                      rf"$U={mut_rate}$" "\n"
-                      rf"$s={to_latex_sci(sel_coef)}$" "\n"
-                      rf"$\sigma={to_latex_sci(sigma)}$",
-                      transform=axes2[i].transAxes,
-                      ha="right",
-                      va="top",
-                      fontsize=10
-                      )
-
-    # remove unused axes
-    for j in range(n, len(axes1)):
-        fig1.delaxes(axes1[j])
-        fig2.delaxes(axes2[j])
+    # Ensure axes is always a 2D array even if num_rows or num_cols == 1
+    axes = np.atleast_2d(axes)
     
-    # create legends
-    handles, labels = axes1[0].get_legend_handles_labels()
-    fig1.legend(handles, labels, loc="upper right", ncol=2, fontsize=12)
+    fig.subplots_adjust(hspace=0.5, wspace=0.35)
 
-    handles, labels = axes2[0].get_legend_handles_labels()
-    fig2.legend(handles, labels, loc="upper right", ncol=2, fontsize=12)
+    formatter = ScalarFormatter(useMathText=True)
+    formatter.set_scientific(True)
+    formatter.set_powerlimits((0, 0))
 
-    # removin dublicate legends
-    for ax in axes1[:n]:
-        ax.legend().remove()
-    for ax in axes2[:n]:
-        ax.legend().remove()
+    click.echo(sigma)
+    click.echo(sel_coef)
+    click.echo(mut_rate)
 
-    # save figures to chosen output folder
-    fig1.savefig(f"{output}/coalescent_density.jpg")
-    fig2.savefig(f"{output}/effective_population_size.jpg")
+    # if more selection coefficients than mutation rates are provided, we will verify effective selection coefficient,  otherwise we will verify effective mutation rate
+    if len(sel_coef) > len(mut_rate) or (len(sel_coef) == len(mut_rate) == 1):
+        click.echo(f"[INFO] Visualizing coalescent densities for effective selection coefficients with population size {pop_size} and mutation rate {mut_rate[0]}...")
+        for row in range(num_rows):
+            s = sel_coef[row]
+            u = mut_rate[0]
+            sd = [s * sig for sig in sigma]
+            click.echo(sd)
+        
+            for col in range(num_cols):
+                ax = axes[row, col]
+            
+                # Only set column headers on the first row
+                if row == 0:
+                    ax.set_title(f"$\\sigma = {sigma[col]} \\cdot s$", fontsize=11, pad=10)
+                else:
+                    ax.set_title("") # Clears titles for lower rows
 
-    click.echo(f"[INFO] Finished visualizations and saved to "
-               f"{output}/coalescent_density.jpg and "
-               f"{output}/effective_population_size.jpg")
+                # Fetching the effective selection coefficient
+                s_eff = get_effective_selection_coefficient(pop_size, s, u, sd[col])
+
+                # Gather all available fixed files for this N and U
+                fixed_dir = results_folder / "fixed"
+                matching_files = list(fixed_dir.glob(f"N{pop_size}_U{u}_s*.out"))
+
+                if not matching_files:
+                    raise FileNotFoundError(f"No fixed files found matching N{pop_size}_U{u} in {fixed_dir}")
+
+                # Parse out the 's' values from the filenames to find the closest one
+                available_s = []
+                for f in matching_files:
+                    # Extract the string between '_s' and '.out'
+                    s_str = f.stem.split("_s")[-1]
+                    available_s.append(float(s_str))
+
+                # Find the index of the closest selection coefficient
+                closest_idx = np.argmin(np.abs(np.array(available_s) - s_eff))
+                closest_file = matching_files[closest_idx]
+
+                # Read the closest file
+                df_fixed = pd.read_csv(closest_file, sep="\t")
+                # Read the corresponding normal file
+                df_normal = pd.read_csv(results_folder / f"normal/N{pop_size}_U{u}_s{s}_sd{sd[col]}.out", sep="\t")
+                tree_normal = pd.read_csv(results_folder / f"normal/N{pop_size}_U{u}_s{s}_sd{sd[col]}.txt", sep="\t")
+
+                normal_tmrca_values = []
+                for entry in tree_normal['tmrca_list']:
+                    values = [float(x) for x in str(entry).split(',')]
+                    normal_tmrca_values.extend(values)
+
+                simprobs, bin_widths, bin_edges = calc_density(normal_tmrca_values, pop_size=2*pop_size, tmax=3)
+
+                density_fixed = np.array(df_fixed["density"].iloc[0].split(","), dtype=float)
+                density_normal = np.array(df_normal["density"].iloc[0].split(","), dtype=float)
+                time = np.array(df_fixed["time"].iloc[0].split(","), dtype=float)
+
+                # Visualizing coalescent densities
+                sns.lineplot(x=time, y=density_fixed, ax=ax, label="fixed", color='#1f77b4', lw=2)
+                sns.lineplot(x=time, y=density_normal, ax=ax, linestyle="--", label="normal", color="orange", lw=2)
+
+                # Visualizing simulated densities as bar plots
+                ax.bar(bin_edges[:-1], simprobs, width=bin_widths, alpha=0.3, label="WF_fixed", color='gray', align="edge")
+
+                # Axis formatting per subplot
+                ax.set_xlim(0, 13000)
+                ax.yaxis.set_major_formatter(formatter)
+            
+                # Only label the outer edges to avoid crowding
+                if row == num_rows - 1:
+                    ax.set_xlabel("Time (Generations)")
+                else:
+                    ax.set_xlabel("")
+                
+                if col == 0:
+                    ax.set_ylabel("Coalescent Density")
+                else:
+                    ax.set_ylabel("")
+
+            # Add Row Titles on the right-hand side of the grid
+            right_ax = axes[row, -1]
+            right_ax.text(1.05, 0.5, f"s = {s}", transform=right_ax.transAxes, 
+                          rotation=-90, va='center', ha='left', fontweight='bold', fontsize=10)
+
+        # Extract global legend handles from the first plot
+        handles, labels = axes[0, 0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.05), ncol=3, fontsize=10)
+
+        # Remove individual axis legends to avoid duplicates
+        for ax in axes.flat:
+            if ax.get_legend() is not None:
+                ax.get_legend().remove()
+
+        # Create destination output directory if it doesn't exist
+        Path(output).mkdir(parents=True, exist_ok=True)
+    
+        # Save figures to chosen output folder with distinct file name
+        fig.savefig(f"{output}/coalescent_density_s_eff.jpg", dpi=600, bbox_inches='tight')
+
+        click.echo(f"[INFO] Finished visualizations and saved to {output}/coalescent_density_s_eff.jpg")
+    
+    # if more mutation rates than selection coefficients are provided, we will verify effective mutation rate, otherwise we will verify effective selection coefficient
+    else:
+        click.echo(f"[INFO] Visualizing coalescent densities for effective mutation rates with population size {pop_size} and selection coefficient {sel_coef[0]}...")
+        for row in range(num_rows):
+            # When tracking changing mutation rates, selection coefficient is held constant at index 0
+            s = sel_coef[0]
+            u = mut_rate[row]
+            sd = [s * sig for sig in sigma]
+        
+            for col in range(num_cols):
+                ax = axes[row, col]
+            
+                # Only set column headers on the first row
+                if row == 0:
+                    ax.set_title(f"$\\sigma = {sigma[col]} \\cdot s$", fontsize=11, pad=10)
+                else:
+                    ax.set_title("")  # Clears titles for lower rows
+
+                # Fetching the effective mutation rate
+                u_eff = get_effective_mutation_rate(pop_size, s, u, sd[col])
+                # Gather all available fixed files for this N and s
+                fixed_dir = results_folder / "fixed"
+                # Using a regex-like glob approach or searching for files matching the N and s pattern
+                matching_files = list(fixed_dir.glob(f"N{pop_size}_U*_s{s}.out"))
+
+                if not matching_files:
+                    raise FileNotFoundError(f"No fixed files found matching N{pop_size} and s{s} in {fixed_dir}")
+
+                # Parse out the 'U' values from the filenames to find the closest one
+                available_u = []
+                for f in matching_files:
+                    # Extract the string between 'N..._U' and '_s'
+                    # Filename structure: N{pop_size}_U{mut_rate}_s{sel_coef}.out
+                    match = re.search(r"_U([\deE.+-]+)_s", f.name)
+                    if match:
+                        available_u.append(float(match.group(1)))
+                    else:
+                        available_u.append(float('inf')) # Safeguard for unexpected formats
+
+                # Find the index of the closest mutation rate
+                closest_idx = np.argmin(np.abs(np.array(available_u) - u_eff))
+                closest_file = matching_files[closest_idx]
+
+                # Read the closest file
+                df_fixed = pd.read_csv(closest_file, sep="\t")
+                df_normal = pd.read_csv(results_folder / f"normal/N{pop_size}_U{u}_s{s}_sd{sd[col]}.out", sep="\t")
+                tree_normal = pd.read_csv(results_folder / f"normal/N{pop_size}_U{u}_s{s}_sd{sd[col]}.txt", sep="\t")
+
+                normal_tmrca_values = []
+                for entry in tree_normal['tmrca_list']:
+                    values = [float(x) for x in str(entry).split(',')]
+                    normal_tmrca_values.extend(values)
+
+                simprobs, bin_widths, bin_edges = calc_density(normal_tmrca_values, pop_size=2*pop_size, tmax=3)
+
+                density_fixed = np.array(df_fixed["density"].iloc[0].split(","), dtype=float)
+                density_normal = np.array(df_normal["density"].iloc[0].split(","), dtype=float)
+                time = np.array(df_fixed["time"].iloc[0].split(","), dtype=float)
+
+                # Visualizing coalescent densities
+                sns.lineplot(x=time, y=density_fixed, ax=ax, label="fixed", color='#1f77b4', lw=2)
+                sns.lineplot(x=time, y=density_normal, ax=ax, linestyle="--", label="normal", color="orange", lw=2)
+
+                # Visualizing simulated densities as bar plots
+                ax.bar(bin_edges[:-1], simprobs, width=bin_widths, alpha=0.3, label="WF_fixed", color='gray', align="edge")
+
+                # Axis formatting per subplot
+                ax.set_xlim(0, 13000)
+                ax.yaxis.set_major_formatter(formatter)
+            
+                # Only label the outer edges to avoid crowding
+                if row == num_rows - 1:
+                    ax.set_xlabel("Time (Generations)")
+                else:
+                    ax.set_xlabel("")
+                
+                if col == 0:
+                    ax.set_ylabel("Coalescent Density")
+                else:
+                    ax.set_ylabel("")
+
+            # Add Row Titles on the right-hand side of the grid (Labeling U_d instead of s)
+            right_ax = axes[row, -1]
+            right_ax.text(1.05, 0.5, f"$U_d$ = {u}", transform=right_ax.transAxes, 
+                          rotation=-90, va='center', ha='left', fontweight='bold', fontsize=10)
+
+        # Extract global legend handles from the first plot
+        handles, labels = axes[0, 0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.05), ncol=3, fontsize=10, frameon=False)
+
+        # Remove individual axis legends to avoid duplicates
+        for ax in axes.flat:
+            if ax.get_legend() is not None:
+                ax.get_legend().remove()
+
+        # Create destination output directory if it doesn't exist
+        Path(output).mkdir(parents=True, exist_ok=True)
+    
+        # Save figures to chosen output folder with a distinct file name
+        fig.savefig(f"{output}/coalescent_density_u_eff.jpg", dpi=600, bbox_inches='tight')
+
+        click.echo(f"[INFO] Finished visualizations and saved to {output}/coalescent_density_u_eff.jpg")
 
 if __name__ == "__main__":
     visualizing_densities()

@@ -57,15 +57,16 @@ def get_min_kolmogorov(pop_size, sel_coef, mut_rate, input_folder, output, type)
 
         # Extract the minimum Kolmogorov value and corresponding selection coefficient and mutation rate
         min_kolmogorov = df.loc[idx, "Kolmogorov"]
-        selection_coeff = df.loc[idx, "s"]
+        s_eff = df.loc[idx, "s"]
         mutation_rate = df.loc[idx, "U"]
+        rmse = df.loc[idx, "RMSE"]
 
         with open(output_file, "a") as f_out:
             # Write header if the file is empty
             if f_out.tell() == 0:
-                f_out.write("s\tsd\tsd/s\tU\tmin_Kolmogorov\n")
+                f_out.write("s\tsd\tsd/s\tU\tmin_Kolmogorov\tRMSE\n")
             # Write the results to the output file
-            f_out.write(f"{selection_coeff}\t{sd}\t{sd/sel_coef}\t{mutation_rate}\t{min_kolmogorov}\n")
+            f_out.write(f"{s_eff}\t{sd}\t{sd/sel_coef}\t{mutation_rate}\t{min_kolmogorov}\t{rmse}\n")
         click.echo(f"File saved to: {output_file}")
 
 if __name__ == "__main__":

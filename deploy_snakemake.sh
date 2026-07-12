@@ -18,7 +18,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------
 # CONFIGURATION
 # ---------------------------------------------------------------------
-ENV_PATH="/home/yjauslin/.conda/envs/coalescent_simulations"
+ENV_PATH=/data/users/yjauslin/conda_envs/coalescent_simulations
 SNAKEFILE="Snakefile"
 MAX_JOBS=50  # Maximum number of concurrent cluster jobs to submit
 PROJECT_DIR=/data/projects/p2026-0005_simplify_evolution/Yannick/simplifying_evolution/

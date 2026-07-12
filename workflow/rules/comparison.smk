@@ -16,7 +16,7 @@ def get_fixed_by_N_and_U_seff(wildcards):
     n_sel_coef = config["constants"]["N_SEL_COEF"]
     s_range_factor = config["experiments"]["s_eff"]["s_range"][0]
     
-    specific_s_values = np.linspace(s_range_factor * target_s_normal, target_s_normal, n_sel_coef)
+    specific_s_values = np.linspace(s_range_factor * target_s_normal, target_s_normal, n_sel_coef+1)
     specific_s_strings = [format_fs_flat(s) for s in specific_s_values]
 
     # 3. Extract the dataframe
@@ -64,8 +64,8 @@ def get_fixed_by_N_and_s_ueff(wildcards):
     
     specific_U_values = np.linspace(
         u_range_factor * target_mut_rate_normal,
-        (1 + u_range_factor) * target_mut_rate_normal,
-        n_sel_coef
+        (1 + (1-u_range_factor)) * target_mut_rate_normal,
+        n_sel_coef+1
     )
     
     # CRITICAL FIX: Convert our calculated floats into the exact string 
@@ -196,39 +196,6 @@ rule get_min_value_s:
         -i results/comparisons/s_eff -o results/min_values/s_eff 2>&1 | tee {log}
         """
 
-rule effective_selection_coefficient:
-    input:
-        files=expand(
-            "results/min_values/s_eff/s_N{N}_U{U}_s{s}.txt",
-            zip,
-            N=exp_data["s_eff"]["normal"]["N"],
-            U=exp_data["s_eff"]["normal"]["U"],
-            s=exp_data["s_eff"]["normal"]["s"],
-        )
-    output:
-        "results/escsim_figures/effective_selection_coefficient.jpg"
-    log:
-        "logs/effective_selection_coefficient.log"
-    params:
-        # Dynamically extract unique baseline population size and mutation rate
-        pop_size = lambda wildcards: exp_data["s_eff"]["normal"]["N"].iloc[0],
-        mut_rate = lambda wildcards: exp_data["s_eff"]["normal"]["U"].iloc[0],
-        # Turns unique s values cleanly into a string like "-s 0.0004 -s 0.001 -s 0.004"
-        s_flags = lambda wildcards: " ".join([f"-s {s}" for s in exp_data["s_eff"]["normal"]["s"].unique()])
-    threads: 1
-    resources:
-        mem_mb=5000,
-        runtime=10
-    shell:
-        """
-        python workflow/scripts/visualize_sd_vs_s.py \
-            {params.pop_size} \
-            -u {params.mut_rate} \
-            {params.s_flags} \
-            -i results/min_values/s_eff \
-            -o results/escsim_figures > {log} 2>&1
-        """
-
 # ==============================================================================
 # U_eff
 # ==============================================================================
@@ -300,40 +267,6 @@ rule get_min_value_U:
             -i results/comparisons/U_eff \
             -o results/min_values/U_eff \
             --type > {log} 2>&1
-        """
-
-rule effective_mutation_rate:
-    input:
-        # Require all 3 baseline min_value files before running the plot
-        files=expand(
-            "results/min_values/U_eff/U_N{N}_U{U}_s{s}.txt",
-            zip,
-            N=exp_data["U_eff"]["normal"]["N"],
-            U=exp_data["U_eff"]["normal"]["U"],
-            s=exp_data["U_eff"]["normal"]["s"],
-        )
-    output:
-        "results/escsim_figures/effective_mutation_rate.jpg"
-    log:
-        "logs/effective_mutation_rate.log"
-    params:
-        # Helper to extract unique population sizes and selection coefficients
-        pop_size = lambda wildcards: exp_data["U_eff"]["normal"]["N"].iloc[0],
-        sel_coef = lambda wildcards: exp_data["U_eff"]["normal"]["s"].iloc[0],
-        # Turns the U values list cleanly into a string like "-u 0.012 -u 0.006 -u 0.003"
-        u_flags = lambda wildcards: " ".join([f"-u {u}" for u in exp_data["U_eff"]["normal"]["U"].unique()])
-    threads: 1
-    resources:
-        mem_mb=5000,
-        runtime=10
-    shell:
-        """
-        python workflow/scripts/visualize_sd_vs_s.py \
-            {params.pop_size} \
-            -s {params.sel_coef} \
-            {params.u_flags} \
-            -i results/min_values/U_eff \
-            -o results/escsim_figures > {log} 2>&1
         """
 
 # ==============================================================================

@@ -21,7 +21,7 @@ initialize() {
 
     m1.convertToSubstitution = T;
 
-    // initializeChromosome(1, length=SEQLEN, type="H");
+    initializeChromosome(1, length=SEQLEN, type="H");
     initializeMutationRate(MUTRATE);
     initializeRecombinationRate(0);
     initializeGenomicElement(g1, 0, SEQLEN-1);
@@ -37,7 +37,7 @@ initialize() {
 1: late() {
     if (sim.cycle >= BURNIN) {
         // Count mutations per individual
-        burden = p1.genomes.countOfMutationsOfType(m1);
+        burden = p1.individuals.haplosomes.countOfMutationsOfType(m1);
         min_b = min(burden);    
         
         // Tabulate frequencies of different burden levels

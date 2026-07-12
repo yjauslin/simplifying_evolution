@@ -24,16 +24,54 @@ initialize() {
     defineConstant("ID", asInteger(SIM_ID));
     defineConstant("BURNIN", asInteger(burnin));
 
-    // Setup Filename
-    sigma_str = format("%.1e", asFloat(sigma));
-    fn = "N" + POPSIZE + "_U" + mutrate + "_s" + abs(SELCOEF) + "_sd" + sigma_str + "_" + ID + ".trees";
+    sig_raw = format("%.10f", asFloat(sigma));
+    mut_raw = format("%.10f", asFloat(mutrate));
+    sel_raw = format("%.10f", abs(SELCOEF));
+    
+    sig_chars = strsplit(sig_raw, "");
+    sig_len = length(sig_chars);
+    while (sig_len > 0) {
+        if (sig_chars[sig_len - 1] == "0") sig_len = sig_len - 1;
+        else break;
+    }
+
+    if (sig_len > 0) {
+        if (sig_chars[sig_len - 1] == ".") sig_len = sig_len - 1;
+    }
+
+    sigma_str = substr(sig_raw, 0, sig_len - 1);
+    if (sigma_str == "0") sigma_str = "0.0";
+
+    mut_chars = strsplit(mut_raw, "");
+    mut_len = length(mut_chars);
+    while (mut_len > 0) {
+        if (mut_chars[mut_len - 1] == "0") mut_len = mut_len - 1;
+        else break;
+    }
+    if (mut_len > 0) {
+        if (mut_chars[mut_len - 1] == ".") mut_len = mut_len - 1;
+    }
+    mutrate_str = substr(mut_raw, 0, mut_len - 1);
+    
+    sel_chars = strsplit(sel_raw, "");
+    sel_len = length(sel_chars);
+    while (sel_len > 0) {
+        if (sel_chars[sel_len - 1] == "0") sel_len = sel_len - 1;
+        else break;
+    }
+    if (sel_len > 0) {
+        if (sel_chars[sel_len - 1] == ".") sel_len = sel_len - 1;
+    }
+    selcoef_str = substr(sel_raw, 0, sel_len - 1);
+
+    fn = "N" + POPSIZE + "_U" + mutrate_str + "_s" + selcoef_str + "_sd" + sigma_str + "_" + ID + ".trees";
     defineConstant("FILENAME", fn);
 
     // Setup Params Filename
     param_fn = "params_N" + POPSIZE +
-           "_U" + mutrate +
-           "_s" + abs(SELCOEF) + "_sd" +
-           SIGMA + ".txt";
+           "_U" + mutrate_str +
+           "_s" + selcoef_str + "_sd" +
+           sigma_str + ".txt";
     defineConstant("PARAM_FILE", FOLDER + param_fn);
 
     if (!fileExists(PARAM_FILE)) {

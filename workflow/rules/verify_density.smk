@@ -7,7 +7,7 @@ rule generate_trees_fixed:
         "logs/trees/fixed/N{N}_U{U}_s{s}/{sim_id}.log"
     params:
         CHRMLEN=config["constants"]["CHRMLEN"],
-        BURNIN=config["constants"]["BURNIN"],
+        BURNIN=10,
         folder='results/trees/fixed_N{N}_U{U}_s{s}/'
     resources:
         mem_mb= 1000,
@@ -34,7 +34,7 @@ rule generate_trees_normal:
         "logs/trees/normal/N{N}_U{U}_s{s}_sd{sigma}/{sim_id}.log"
     params:
         CHRMLEN=config["constants"]["CHRMLEN"],
-        BURNIN=config["constants"]["BURNIN"],
+        BURNIN=10,
         folder="results/trees/normal_N{N}_U{U}_s{s}_sd{sigma}/"
     resources:
         mem_mb= 1000,
@@ -76,7 +76,7 @@ rule generate_coalescent_frequencies_fixed:
     threads: 1
     shell:
         """
-        python workflow/scripts/tree.py \
+        python workflow/scripts/calculate_tmrca.py \
         -t N{wildcards.N}_U{wildcards.U}_s{wildcards.s} \
         -i results/trees/fixed_N{wildcards.N}_U{wildcards.U}_s{wildcards.s}/ \
         -o results/coalescent_densities/fixed \
@@ -106,7 +106,7 @@ rule generate_coalescent_frequencies_normal:
     threads: 1
     shell:
         """
-        python workflow/scripts/tree.py \
+        python workflow/scripts/calculate_tmrca.py \
         -t N{wildcards.N}_U{wildcards.U}_s{wildcards.s}_sd{wildcards.sigma} \
         -i results/trees/normal_N{wildcards.N}_U{wildcards.U}_s{wildcards.s}_sd{wildcards.sigma}/ \
         -o results/coalescent_densities/normal \

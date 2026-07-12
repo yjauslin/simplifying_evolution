@@ -46,7 +46,9 @@ def get_num_sim(wildcards):
 
     phi = N * s * math.exp(-U / s)
 
-    return 100 if phi > 1 else config["constants"]["ESTIMATE_N_SIM"]
+    n_sim = config["constants"]["ESTIMATE_N_SIM"] if phi < 1 or U <= 0.001 else 100
+
+    return n_sim
 
 rule escsim_run_fixed:
     wildcard_constraints:
