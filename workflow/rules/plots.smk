@@ -210,7 +210,7 @@ def get_specific_mut_burden_inputs(wildcards):
     selected_files = []
     
     # Define the precise fractions we want to display on the plot
-    target_fractions = [0.0, 0.5, 1.0]
+    target_fractions = [0.0, 0.25, 0.5, 0.75, 1.0]
     
     # 1. Filter s_eff experiment files
     for s in config["experiments"]["s_eff"]["s_normal"]:
@@ -259,10 +259,7 @@ rule mut_burden_dist:
         ueff_u  = lambda w: ",".join(map(str, config["experiments"]["U_eff"]["mut_rate_normal"])),
         
         # Collect all specific formatted sigmas required for the line files parsing
-        sigmas  = lambda w: ",".join(sorted(list(set(
-            [format_fs_flat(f * s) for s in config["experiments"]["s_eff"]["s_normal"] for f in [0.0, 0.25, 0.5, 0.75, 1.0]] +
-            [format_fs_flat(f * config["experiments"]["U_eff"]["sel_coef"][0]) for f in [0.0, 0.25, 0.5, 0.75, 1.0]]
-        )))),
+        sigmas  = "0.0,0.25,0.5,0.75,1.0"
     threads: 1
     resources:
         mem_mb=5000,
@@ -272,8 +269,8 @@ rule mut_burden_dist:
         python workflow/scripts/visualize_mut_burden_dist.py \
         -i results/escsim/normal \
         --pop_size {params.pop_size} \
-        --mut_rate {params.s_eff_u},{params.ueff_u} \
-        --sel_coef {params.s_eff_s},{params.ueff_s} \
+        --mut_rate {params.ueff_u} \
+        --sel_coef {params.s_eff_s} \
         --sigma {params.sigmas} \
         -o results/escsim_figures > {log} 2>&1
         """
@@ -352,7 +349,7 @@ def get_required_files_seff(wildcards):
     # Fixed files (.out and .txt)
     df_normal = exp_data["s_eff"]["normal"]
 
-    sd_multipliers = [0.0, 0.5, 1.0]
+    sd_multipliers = [0.0, 0.5, 0.75, 1.0]
     for _, row in df_normal.iterrows():
         # Estimates
         files.append(f"results/coalescent_densities/fixed/N{row['N']}_U{row['U']}_s{row['s']}.out")
@@ -361,8 +358,8 @@ def get_required_files_seff(wildcards):
         for multiplier in sd_multipliers:
             # Calculate the scaled standard deviation value
             calculated_sd = multiplier * float(row['s'])
-
-            sd_str = f"{calculated_sd}"
+            sd_str = f"{round(calculated_sd, 5)}"
+            
             # WF-Simulations
             files.append(f"results/coalescent_densities/normal/N{row['N']}_U{row['U']}_s{row['s']}_sd{sd_str}.txt")
         
@@ -374,7 +371,7 @@ def get_required_files_ueff(wildcards):
     # Fixed files (.out and .txt)
     df_normal = exp_data["U_eff"]["normal"]
 
-    sd_multipliers = [0.0, 0.5, 1.0]
+    sd_multipliers = [0.0, 0.5, 0.75, 1.0]
     for _, row in df_normal.iterrows():
         # Estimates
         files.append(f"results/coalescent_densities/fixed/N{row['N']}_U{row['U']}_s{row['s']}.out")
@@ -383,8 +380,8 @@ def get_required_files_ueff(wildcards):
         for multiplier in sd_multipliers:
             # Calculate the scaled standard deviation value
             calculated_sd = multiplier * float(row['s'])
+            sd_str = f"{round(calculated_sd, 5)}"
 
-            sd_str = f"{calculated_sd}"
             # WF-Simulations
             files.append(f"results/coalescent_densities/normal/N{row['N']}_U{row['U']}_s{row['s']}_sd{sd_str}.txt")
         
@@ -404,7 +401,7 @@ rule verify_s_eff:
         # Expands selection values cleanly into CLI tokens: "-s 0.0004 -s 0.001 -s 0.004"
         s_flags  = lambda wildcards: "-s " + ",".join([str(s) for s in exp_data["s_eff"]["normal"]["s"].unique()]),
         # Formats list into distinct parameter tokens: "-sd 0.0 -sd 0.5 -sd 1.0"
-        sd_flags = "-sd " + ",".join([str(sig) for sig in [0.0, 0.5, 1.0]])
+        sd_flags = "-sd " + ",".join([str(sig) for sig in [0.0, 0.5, 0.75, 1.0]])
     threads: 1
     resources:
         mem_mb=5000,
@@ -433,7 +430,7 @@ rule verify_U_eff:
         sel_coef  = lambda wildcards: exp_data["U_eff"]["normal"]["s"].iloc[0],
         # Expands mutation values cleanly into CLI tokens: "-u 0.006 -u 0.01 -u 0.0001"
         u_flags   = lambda wildcards: "-u " + ",".join([str(u) for u in exp_data["U_eff"]["normal"]["U"].unique()]),
-        sd_flags = "-sd " + ",".join([str(sig) for sig in [0.0, 0.5, 1.0]])
+        sd_flags = "-sd " + ",".join([str(sig) for sig in [0.0, 0.5, 0.75, 1.0]])
     threads: 1
     resources:
         mem_mb=5000,

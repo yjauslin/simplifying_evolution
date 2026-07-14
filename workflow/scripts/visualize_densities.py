@@ -226,27 +226,39 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
     sns.set_context("paper")
     sns.set_style("ticks")
 
+    plt.rcParams.update({
+        "text.usetex": False,
+        "mathtext.fontset": "cm",
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+    })
+
+    cb_palette = sns.color_palette("colorblind")
+    color_fixed = cb_palette[0]
+    color_normal = cb_palette[1]     
+    color_wf_fixed = '#519e8a'   
+
     # Fig width corresponds to column width in LaTeX (72.27 points per inch)
     fig_width = 426.79134 / 72.27  
-    fig_height = fig_width / 1.618
+    fig_height = fig_width * (num_rows / num_cols) * 1.2
 
-    fig, axes = plt.subplots(figsize=(fig_width, fig_height), sharey=False, nrows=num_rows, ncols=num_cols)
+    fig, axes = plt.subplots(figsize=(fig_width, fig_height), sharey=True, sharex=True, 
+    nrows=num_rows, ncols=num_cols)
     
     # Ensure axes is always a 2D array even if num_rows or num_cols == 1
     axes = np.atleast_2d(axes)
     
-    fig.subplots_adjust(hspace=0.5, wspace=0.35)
+    fig.subplots_adjust(hspace=0.35, wspace=0.18, top=0.88, bottom=0.15, left=0.25)
 
     formatter = ScalarFormatter(useMathText=True)
     formatter.set_scientific(True)
-    formatter.set_powerlimits((0, 0))
+    formatter.set_powerlimits((-3, 3))
 
-    click.echo(sigma)
-    click.echo(sel_coef)
-    click.echo(mut_rate)
+    # Determine execution flow mode
+    s_eff_mode = len(sel_coef) > len(mut_rate) or (len(sel_coef) == len(mut_rate) == 1)
 
     # if more selection coefficients than mutation rates are provided, we will verify effective selection coefficient,  otherwise we will verify effective mutation rate
-    if len(sel_coef) > len(mut_rate) or (len(sel_coef) == len(mut_rate) == 1):
+    if s_eff_mode:
         click.echo(f"[INFO] Visualizing coalescent densities for effective selection coefficients with population size {pop_size} and mutation rate {mut_rate[0]}...")
         for row in range(num_rows):
             s = sel_coef[row]
@@ -256,12 +268,6 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
         
             for col in range(num_cols):
                 ax = axes[row, col]
-            
-                # Only set column headers on the first row
-                if row == 0:
-                    ax.set_title(f"$\\sigma = {sigma[col]} \\cdot s$", fontsize=11, pad=10)
-                else:
-                    ax.set_title("") # Clears titles for lower rows
 
                 # Fetching the effective selection coefficient
                 s_eff = get_effective_selection_coefficient(pop_size, s, u, sd[col])
@@ -286,9 +292,42 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
 
                 # Read the closest file
                 df_fixed = pd.read_csv(closest_file, sep="\t")
-                # Read the corresponding normal file
-                df_normal = pd.read_csv(results_folder / f"normal/N{pop_size}_U{u}_s{s}_sd{sd[col]}.out", sep="\t")
-                tree_normal = pd.read_csv(results_folder / f"normal/N{pop_size}_U{u}_s{s}_sd{sd[col]}.txt", sep="\t")
+
+                normal_dir = results_folder / "normal"
+                matching_normal_files = list(normal_dir.glob(f"N{pop_size}_U*_s{s}_sd*.out"))
+
+                if not matching_normal_files:
+                    raise FileNotFoundError(f"No normal files found matching N{pop_size} and s{s} in {normal_dir}")
+
+                target_normal_file = None
+
+                for f in matching_normal_files:
+                    # Extracts both the mutation rate (U) and standard deviation (sd) securely
+                    match = re.search(r"N\d+_U([\deE.+-]+)_s[\deE.+-]+_sd([\deE.+-]+)\.out", f.name)
+                    if match:
+                        file_u = float(match.group(1))
+                        file_sd = float(match.group(2))
+                        
+                        # Match exact mutation rate (u) and floating-tolerant standard deviation (sd[col])
+                        if file_u == u and np.isclose(file_sd, sd[col]):
+                            target_normal_file = f
+                            break
+
+                if target_normal_file is None:
+                    raise FileNotFoundError(
+                        f"No normal file found matching U={u} and sd={sd[col]} (checked with floating-point tolerance) in {normal_dir}"
+                    )
+
+                # Set up file paths with multiple suffixes cleanly using .with_suffix()
+                out_file_path = target_normal_file
+                txt_file_path = target_normal_file.with_suffix(".txt")
+
+                if not txt_file_path.exists():
+                    raise FileNotFoundError(f"Expected normal sister file missing: {txt_file_path}")
+
+                # Read the corresponding normal files
+                df_normal = pd.read_csv(out_file_path, sep="\t")
+                tree_normal = pd.read_csv(txt_file_path, sep="\t")
 
                 normal_tmrca_values = []
                 for entry in tree_normal['tmrca_list']:
@@ -301,49 +340,24 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
                 density_normal = np.array(df_normal["density"].iloc[0].split(","), dtype=float)
                 time = np.array(df_fixed["time"].iloc[0].split(","), dtype=float)
 
-                # Visualizing coalescent densities
-                sns.lineplot(x=time, y=density_fixed, ax=ax, label="fixed", color='#1f77b4', lw=2)
-                sns.lineplot(x=time, y=density_normal, ax=ax, linestyle="--", label="normal", color="orange", lw=2)
+                # Visualizing coalescent densitiy estimates
+                sns.lineplot(x=time, y=density_fixed, ax=ax, label="fixed", color=color_fixed, lw=1.5)
+                sns.lineplot(x=time, y=density_normal, ax=ax, linestyle="--", label="normal", color=color_normal, lw=1.5)
 
-                # Visualizing simulated densities as bar plots
-                ax.bar(bin_edges[:-1], simprobs, width=bin_widths, alpha=0.3, label="WF_fixed", color='gray', align="edge")
+                # visualizing simulated densities as bar plots
+                ax.bar(bin_edges[:-1], simprobs, width=bin_widths, alpha=0.35, label="WF_normal", color=color_wf_fixed, align="edge")
 
                 # Axis formatting per subplot
                 ax.set_xlim(0, 13000)
                 ax.yaxis.set_major_formatter(formatter)
             
-                # Only label the outer edges to avoid crowding
-                if row == num_rows - 1:
-                    ax.set_xlabel("Time (Generations)")
-                else:
-                    ax.set_xlabel("")
-                
-                if col == 0:
-                    ax.set_ylabel("Coalescent Density")
-                else:
-                    ax.set_ylabel("")
+                ax.set_xlabel("")
+                ax.set_ylabel("")
 
             # Add Row Titles on the right-hand side of the grid
             right_ax = axes[row, -1]
             right_ax.text(1.05, 0.5, f"s = {s}", transform=right_ax.transAxes, 
-                          rotation=-90, va='center', ha='left', fontweight='bold', fontsize=10)
-
-        # Extract global legend handles from the first plot
-        handles, labels = axes[0, 0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.05), ncol=3, fontsize=10)
-
-        # Remove individual axis legends to avoid duplicates
-        for ax in axes.flat:
-            if ax.get_legend() is not None:
-                ax.get_legend().remove()
-
-        # Create destination output directory if it doesn't exist
-        Path(output).mkdir(parents=True, exist_ok=True)
-    
-        # Save figures to chosen output folder with distinct file name
-        fig.savefig(f"{output}/coalescent_density_s_eff.jpg", dpi=600, bbox_inches='tight')
-
-        click.echo(f"[INFO] Finished visualizations and saved to {output}/coalescent_density_s_eff.jpg")
+                          rotation=-90, va='center', ha='left', fontsize=10)
     
     # if more mutation rates than selection coefficients are provided, we will verify effective mutation rate, otherwise we will verify effective selection coefficient
     else:
@@ -356,12 +370,6 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
         
             for col in range(num_cols):
                 ax = axes[row, col]
-            
-                # Only set column headers on the first row
-                if row == 0:
-                    ax.set_title(f"$\\sigma = {sigma[col]} \\cdot s$", fontsize=11, pad=10)
-                else:
-                    ax.set_title("")  # Clears titles for lower rows
 
                 # Fetching the effective mutation rate
                 u_eff = get_effective_mutation_rate(pop_size, s, u, sd[col])
@@ -386,12 +394,44 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
 
                 # Find the index of the closest mutation rate
                 closest_idx = np.argmin(np.abs(np.array(available_u) - u_eff))
-                closest_file = matching_files[closest_idx]
+                closest_file_fixed = matching_files[closest_idx]
 
-                # Read the closest file
-                df_fixed = pd.read_csv(closest_file, sep="\t")
-                df_normal = pd.read_csv(results_folder / f"normal/N{pop_size}_U{u}_s{s}_sd{sd[col]}.out", sep="\t")
-                tree_normal = pd.read_csv(results_folder / f"normal/N{pop_size}_U{u}_s{s}_sd{sd[col]}.txt", sep="\t")
+                # Read the closest fixed file
+                df_fixed = pd.read_csv(closest_file_fixed, sep="\t")
+
+                # Gather all available normal files for this N and s
+                normal_dir = results_folder / "normal"
+                # Using a regex-like glob approach or searching for files matching the N and s pattern
+                matching_files = list(normal_dir.glob(f"N{pop_size}_U*_s{s}_sd*.out"))
+
+                if not matching_files:
+                    raise FileNotFoundError(f"No normal files found matching N{pop_size} and s{s} in {normal_dir}")
+
+                target_file = None
+
+                # Iterate and match using floating-point safety boundaries
+                for f in matching_files:
+                # Pattern extracts both the mutation rate (U) and the standard deviation (sd) safely
+                    match = re.search(r"N\d+_U([\deE.+-]+)_s[\deE.+-]+_sd([\deE.+-]+)\.out", f.name)
+                    if match:
+                        file_u = float(match.group(1))
+                        file_sd = float(match.group(2))
+        
+                        # Match file_u exactly and file_sd within floating-point tolerances
+                        if file_u == u and np.isclose(file_sd, sd[col]):
+                            target_file = f
+                            break
+
+                if target_file is None:
+                    raise FileNotFoundError(
+                    f"No normal file found matching U={u} and sd={sd[col]} (checked with floating-point tolerance) in {normal_dir}"
+                    )
+                
+                out_file_path = target_file
+                txt_file_path = target_file.with_suffix(".txt")
+
+                df_normal = pd.read_csv(out_file_path, sep="\t")
+                tree_normal = pd.read_csv(txt_file_path, sep="\t")
 
                 normal_tmrca_values = []
                 for entry in tree_normal['tmrca_list']:
@@ -405,48 +445,52 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
                 time = np.array(df_fixed["time"].iloc[0].split(","), dtype=float)
 
                 # Visualizing coalescent densities
-                sns.lineplot(x=time, y=density_fixed, ax=ax, label="fixed", color='#1f77b4', lw=2)
-                sns.lineplot(x=time, y=density_normal, ax=ax, linestyle="--", label="normal", color="orange", lw=2)
+                sns.lineplot(x=time, y=density_fixed, ax=ax, label=f"fixed", color=color_fixed, lw=1.5)
+                sns.lineplot(x=time, y=density_normal, ax=ax, linestyle="--", label=f"normal", color=color_normal, lw=1.5)
 
                 # Visualizing simulated densities as bar plots
-                ax.bar(bin_edges[:-1], simprobs, width=bin_widths, alpha=0.3, label="WF_fixed", color='gray', align="edge")
-
-                # Axis formatting per subplot
-                ax.set_xlim(0, 13000)
-                ax.yaxis.set_major_formatter(formatter)
-            
-                # Only label the outer edges to avoid crowding
-                if row == num_rows - 1:
-                    ax.set_xlabel("Time (Generations)")
-                else:
-                    ax.set_xlabel("")
+                ax.bar(bin_edges[:-1], simprobs, width=bin_widths, alpha=0.35, label=f"WF normal", color=color_wf_fixed, align="edge")
                 
-                if col == 0:
-                    ax.set_ylabel("Coalescent Density")
-                else:
-                    ax.set_ylabel("")
+                # Axis formatting per subplot
+                ax.xaxis.set_major_formatter(formatter)
+                ax.yaxis.set_major_formatter(formatter)
+                ax.set_xlim(0, 13000)
+            
+                ax.set_xlabel("")
+                ax.set_ylabel("")
 
             # Add Row Titles on the right-hand side of the grid (Labeling U_d instead of s)
             right_ax = axes[row, -1]
             right_ax.text(1.05, 0.5, f"$U_d$ = {u}", transform=right_ax.transAxes, 
-                          rotation=-90, va='center', ha='left', fontweight='bold', fontsize=10)
-
-        # Extract global legend handles from the first plot
-        handles, labels = axes[0, 0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.05), ncol=3, fontsize=10, frameon=False)
-
-        # Remove individual axis legends to avoid duplicates
-        for ax in axes.flat:
-            if ax.get_legend() is not None:
-                ax.get_legend().remove()
-
-        # Create destination output directory if it doesn't exist
-        Path(output).mkdir(parents=True, exist_ok=True)
+                          rotation=-90, va='center', ha='left', fontsize=11)
     
-        # Save figures to chosen output folder with a distinct file name
-        fig.savefig(f"{output}/coalescent_density_u_eff.jpg", dpi=600, bbox_inches='tight')
+    # Add Column Titles on the top of the grid
+    for col in range(num_cols):
+        axes[0, col].text(0.5, 1.12, f"$\\sigma = {sigma[col]} \\cdot s$", 
+                          transform=axes[0, col].transAxes,
+                          ha="center", va="bottom", fontsize=11)
 
-        click.echo(f"[INFO] Finished visualizations and saved to {output}/coalescent_density_u_eff.jpg")
+    # Establish global labels centered perfectly across all columns and rows
+    fig.supylabel(r"Coalescent Density", fontsize=11, x=0.005)
+    fig.supxlabel("Time (Generations)", fontsize=11, y=0.01)
+    
+    # Extract global legend handles from the first plot
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.08), ncol=num_cols, fontsize=10, frameon=False)
+
+    # Remove individual axis legends to avoid duplicates
+    for ax in axes.flat:
+        if ax.get_legend() is not None:
+            ax.get_legend().remove()
+
+    # Create destination output directory if it doesn't exist
+    Path(output).mkdir(parents=True, exist_ok=True)
+    
+    file_suffix = "s_eff" if s_eff_mode else "u_eff"
+    save_path = f"{output}/coalescent_density_{file_suffix}.jpg"
+    fig.tight_layout(pad=0.1)
+    fig.savefig(save_path, dpi=600, bbox_inches='tight')
+    click.echo(f"[INFO] Finished visualizations and saved to {save_path}")
 
 if __name__ == "__main__":
     visualizing_densities()

@@ -37,6 +37,13 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
     sns.set_context("paper")
     sns.set_style("ticks")
 
+    plt.rcParams.update({
+        "text.usetex": False,
+        "mathtext.fontset": "cm",        
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+    })
+
     # fig width corresponds to column with in LateX, 72.27 is the conversion factor from points to inches
     fig_width = 426.79134 / 72.27  
     fig_height = fig_width / 1.618
@@ -61,9 +68,9 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
             sns.scatterplot(x='sd/s', y='RMSE', data=df, ax=ax, color=colors[i], marker=markers[i], s=25, label=f'$s={s}$')
 
         ax.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
-        ax.set_ylabel("RMSE", fontsize=11, labelpad=6)
+        ax.set_ylabel(r"RMSE", fontsize=11, labelpad=6)
         ax.tick_params(axis='both', which='major', labelsize=9)
-        ax.legend(title="Selection coefficient", title_fontsize=10, fontsize=9, loc="best", frameon=False)
+        ax.legend(title=r"Selection coefficient", title_fontsize=10, fontsize=9, loc="best", frameon=False)
         fig.tight_layout(pad=0.1)
         fig.savefig(os.path.join(output, f"s_eff_RMSE.jpg"), dpi=600, bbox_inches='tight')
     
@@ -79,9 +86,9 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
             sns.scatterplot(x='sd/s', y='RMSE', data=df, ax=ax, label=f'$U_d={u}$', color=colors[i], marker=markers[i], s=25)
 
         ax.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
-        ax.set_ylabel("RMSE", fontsize=11, labelpad=6)
+        ax.set_ylabel(r"RMSE", fontsize=11, labelpad=6)
         ax.tick_params(axis='both', which='major', labelsize=9)
-        ax.legend(title="Mutation rate", title_fontsize=10, fontsize=9, loc="best", frameon=False)
+        ax.legend(title=r"Mutation rate", title_fontsize=10, fontsize=9, loc="best", frameon=False)
         fig.tight_layout(pad=0.1)
         fig.savefig(os.path.join(output, f"U_eff_RMSE.jpg"), dpi=600, bbox_inches='tight')
 

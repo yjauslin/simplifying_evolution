@@ -37,6 +37,13 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
     sns.set_context("paper")
     sns.set_style("ticks")
 
+    plt.rcParams.update({
+        "text.usetex": False,
+        "mathtext.fontset": "cm",        
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+    })
+
     # fig width corresponds to column with in LateX, 72.27 is the conversion factor from points to inches
     fig_width = 426.79134 / 72.27  
     fig_height = fig_width / 1.618
@@ -76,19 +83,19 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
             ax1.plot(x_range, y_trend, color='black', linestyle='--', linewidth=1)
 
             sns.scatterplot(x=df['sd/s'], y=s_s_eff, ax=ax2, color=colors[i], marker=markers[i], s=25, label=f'$s={s}$')
-        ax1.set_ylim(0, max(sel_coef) * 1.1)
-        ax1.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
-        ax1.set_ylabel("effective selection coefficient", fontsize=11, labelpad=6)
-        ax1.tick_params(axis='both', which='major', labelsize=9)
-        ax1.legend(title="Selection coefficient", title_fontsize=10, fontsize=9, loc="best", frameon=False)
+        ax1.set_ylim(-0.05*min(sel_coef), max(sel_coef) * 1.1)
+        ax1.set_xlabel(r"$\sigma/s$", fontsize=10, labelpad=6)
+        ax1.set_ylabel(r"effective selection coefficient", fontsize=10, labelpad=6)
+        ax1.tick_params(axis='both', which='major', labelsize=8)
+        ax1.legend(title=r"Selection coefficient", title_fontsize=10, loc="best", ncol=1, frameon=False, fontsize=8)
         fig1.tight_layout(pad=0.1)
         fig1.savefig(os.path.join(output, f"effective_selection_coefficient.jpg"), dpi=600, bbox_inches='tight')
 
         ax2.set_ylim(0, 1)
-        ax2.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
-        ax2.set_ylabel("effective selection coefficient / s", fontsize=11, labelpad=6)
-        ax2.tick_params(axis='both', which='major', labelsize=9)
-        ax2.legend(title="Selection coefficient", title_fontsize=10, fontsize=9, loc="best", frameon=False)
+        ax2.set_xlabel(r"$\sigma/s$", fontsize=10, labelpad=6)
+        ax2.set_ylabel(r"effective selection coefficient / $s$", fontsize=10, labelpad=6)
+        ax2.tick_params(axis='both', which='major', labelsize=8)
+        ax2.legend(title=r"Selection coefficient", title_fontsize=10, fontsize=8, loc="best", frameon=False)
         fig2.tight_layout(pad=0.1)
         fig2.savefig(os.path.join(output, f"relative_effective_selection_coefficient.jpg"), dpi=600, bbox_inches='tight')
 
@@ -119,19 +126,19 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
             sns.scatterplot(x=df['sd/s'], y=u_eff_u, ax=ax2, color=colors[i], marker=markers[i], s=25, label=f'$U_d={u}$')
 
 
-        ax1.set_ylim(0, max(mut_rate) * 1.1)
-        ax1.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
-        ax1.set_ylabel("effective mutation rate", fontsize=11, labelpad=6)
-        ax1.tick_params(axis='both', which='major', labelsize=9)
-        ax1.legend(title="Mutation rate", title_fontsize=10, fontsize=9, loc="best", frameon=False)
+        ax1.set_ylim(-0.05*min(mut_rate), max(mut_rate) * 1.1)
+        ax1.set_xlabel(r"$\sigma/s$", fontsize=10, labelpad=6)
+        ax1.set_ylabel(r"effective mutation rate", fontsize=10, labelpad=6)
+        ax1.tick_params(axis='both', which='major', labelsize=8)
+        ax1.legend(title=r"Mutation rate", title_fontsize=10, fontsize=8, loc="best", ncol=1, frameon=False)
         fig1.tight_layout(pad=0.1)
         fig1.savefig(os.path.join(output, f"effective_mutation_rate.jpg"), dpi=600, bbox_inches='tight')
 
-        ax2.set_ylim(0, 1)
-        ax2.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
-        ax2.set_ylabel("effective mutation rate / $U_d$", fontsize=11, labelpad=6)
-        ax2.tick_params(axis='both', which='major', labelsize=9)
-        ax2.legend(title="Mutation rate", title_fontsize=10, fontsize=9, loc="best", frameon=False)
+        ax2.set_ylim(0, 1.1)
+        ax2.set_xlabel(r"$\sigma/s$", fontsize=10, labelpad=6)
+        ax2.set_ylabel(r"effective mutation rate / $U_d$", fontsize=10, labelpad=6)
+        ax2.tick_params(axis='both', which='major', labelsize=8)
+        ax2.legend(title=r"Mutation rate", title_fontsize=10, loc="best", ncol=1, frameon=False, fontsize=8)
         fig2.tight_layout(pad=0.1)
         fig2.savefig(os.path.join(output, f"relative_effective_mutation_rate.jpg"), dpi=600, bbox_inches='tight')
 

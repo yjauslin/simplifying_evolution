@@ -19,8 +19,6 @@ def visualize_rmse(input, output, axis_type):
 
     df = pd.read_csv(input, sep='\t')
 
-    sns.set_context("talk")
-
     fig, ax = plt.subplots(figsize=(10, 6))
 
     # Set x-axis label based on the axis_type flag

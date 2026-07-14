@@ -43,6 +43,13 @@ def main(input_dir, output_dir, sel_coef, mut_rate, pop_size):
     sns.set_context("paper")
     sns.set_style("ticks")
 
+    plt.rcParams.update({
+        "text.usetex": False,
+        "mathtext.fontset": "cm",
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+    })
+
     # Column width in LaTeX conversion (points to inches)
     fig_width = 426.79134 / 72.27  
     fig_height = fig_width / 1.618
@@ -108,11 +115,11 @@ def main(input_dir, output_dir, sel_coef, mut_rate, pop_size):
 
     # Final plot adjustments
     ax.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
-    ax.set_ylabel("Relative Click Rate", fontsize=11, labelpad=6)
+    ax.set_ylabel(r"Relative Click Rate", fontsize=11, labelpad=6)
     ax.tick_params(axis='both', which='major', labelsize=9)
     
-    title_text = "Selection coefficient" if plot_by_s else "Mutation rate"
-    ax.legend(title=title_text, title_fontsize=10, fontsize=9, loc="best", frameon=False)
+    title_text = r"Selection coefficient" if plot_by_s else r"Mutation rate"
+    ax.legend(title=title_text, title_fontsize=10, fontsize=8, loc="best", frameon=False)
     
     fig.tight_layout(pad=0.1)
     
