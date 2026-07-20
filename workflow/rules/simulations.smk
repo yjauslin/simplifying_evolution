@@ -16,11 +16,11 @@ def get_mem_mb(wildcards):
 
 def get_num_sim(wildcards):
     """
-    Determine number of simulations from N, U and s.
+    Determine number of simulations from N, U, s, and optionally sigma.
 
     Uses:
-    - wildcards.s if available
-    - otherwise global S_FIXED
+    - wildcards.s if available, otherwise global S_FIXED
+    - wildcards.sigma if available
     """
 
     float_pattern = re.compile(r"^-?\d*\.?\d+(?:[eE][+-]?\d+)?$")
@@ -40,10 +40,20 @@ def get_num_sim(wildcards):
     s_raw = getattr(wildcards, "s", None)
     s = parse_float("s", s_raw) if s_raw is not None else S_FIXED
 
-    # safety check
+    # optional: sigma may be missing
+    sigma_raw = getattr(wildcards, "sigma", None)
+    sigma = parse_float("sigma", sigma_raw)
+
+    # safety check for s = 0
     if s == 0:
         return config["constants"]["ESTIMATE_N_SIM"]
 
+    # If sigma is present, check its ratio to s
+    if sigma is not None:
+        if sigma / s > 0.25:
+            return config["constants"]["ESTIMATE_N_SIM"]
+
+    # original calculation
     phi = N * s * math.exp(-U / s)
 
     n_sim = config["constants"]["ESTIMATE_N_SIM"] if phi < 1 or U <= 0.001 else 100
