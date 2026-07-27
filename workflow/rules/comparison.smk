@@ -14,9 +14,10 @@ def get_fixed_by_N_and_U_seff(wildcards):
 
     # 2. Re-calculate the specific sub-values using the exact same formatting
     n_sel_coef = config["constants"]["N_SEL_COEF"]
-    s_range_factor = config["experiments"]["s_eff"]["s_range"][0]
+    s_range_upper = config["experiments"]["s_eff"]["s_range"][0]
+    s_range_lower = config["experiments"]["s_eff"]["s_range"][1]
     
-    specific_s_values = np.linspace(s_range_factor * target_s_normal, target_s_normal, n_sel_coef+1)
+    specific_s_values = np.linspace(s_range_upper * target_s_normal, s_range_lower * target_s_normal, n_sel_coef+1)
     specific_s_strings = [format_fs_flat(s) for s in specific_s_values]
 
     # 3. Extract the dataframe
@@ -60,11 +61,12 @@ def get_fixed_by_N_and_s_ueff(wildcards):
 
     # 1. Step 1: Re-calculate the specific slice of 'U' values
     n_sel_coef = config["constants"]["N_SEL_COEF"]
-    u_range_factor = config["experiments"]["U_eff"]["mut_rate_range"][0]
+    u_range_upper = config["experiments"]["U_eff"]["mut_rate_range"][0]
+    u_range_lower = config["experiments"]["U_eff"]["mut_rate_range"][1]
     
     specific_U_values = np.linspace(
-        u_range_factor * target_mut_rate_normal,
-        (1 + (1-u_range_factor)) * target_mut_rate_normal,
+        u_range_upper * target_mut_rate_normal,
+        u_range_lower * target_mut_rate_normal,
         n_sel_coef+1
     )
     

@@ -74,14 +74,14 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
         u_top = mut_rate[0]
         ax_top = axes[0, col]
         
-        ax_top.set_title(f"$U_d$ = {u_top}; $s$ = {s_top}", fontsize=9)
+        ax_top.set_title(f"$U_d$ = {u_top}; $s_{{normal}}$ = {s_top}", fontsize=9)
         
         # --- Row 1: Fixed selection coefficient s[0], varying mutation rate ---
         s_bottom = sel_coef[0]
         u_bottom = mut_rate[min(col, len(mut_rate) - 1)]
         ax_bottom = axes[1, col]
         
-        ax_bottom.set_title(f"$s$ = {s_bottom}; $U_d$ = {u_bottom}", fontsize=9)
+        ax_bottom.set_title(f"$s_{{normal}}$ = {s_bottom}; $U_d$ = {u_bottom}", fontsize=9)
 
         # Draw execution threads across both active horizontal frames sequentially
         for row, (current_s, current_u, ax) in enumerate([(s_top, u_top, ax_top), (s_bottom, u_bottom, ax_bottom)]):

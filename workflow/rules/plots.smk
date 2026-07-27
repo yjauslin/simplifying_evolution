@@ -136,7 +136,7 @@ rule effective_mutation_rate:
             -o results/escsim_figures > {log} 2>&1
         """
 
-rule s_eff_RMSE:
+rule s_eff_KS:
     input:
         files=expand(
             "results/min_values/s_eff/s_N{N}_U{U}_s{s}.txt",
@@ -146,9 +146,9 @@ rule s_eff_RMSE:
             s=exp_data["s_eff"]["normal"]["s"],
         )
     output:
-        "results/escsim_figures/s_eff_RMSE.jpg"
+        "results/escsim_figures/s_eff_Kolmogorov.jpg"
     log:
-        "logs/s_eff_RMSE.log"
+        "logs/s_eff_Kolmogorov.log"
     params:
         # Dynamically extract unique baseline population size and mutation rate
         pop_size = lambda wildcards: exp_data["s_eff"]["normal"]["N"].iloc[0],
@@ -161,7 +161,7 @@ rule s_eff_RMSE:
         runtime=10
     shell:
         """
-        python workflow/scripts/visualize_sd_vs_rmse.py \
+        python workflow/scripts/visualize_sd_vs_ks.py \
             {params.pop_size} \
             -u {params.mut_rate} \
             {params.s_flags} \
@@ -169,7 +169,7 @@ rule s_eff_RMSE:
             -o results/escsim_figures > {log} 2>&1
         """
 
-rule U_eff_RMSE:
+rule U_eff_KS:
     input:
         # Require all 3 baseline min_value files before running the plot
         files=expand(
@@ -180,9 +180,9 @@ rule U_eff_RMSE:
             s=exp_data["U_eff"]["normal"]["s"],
         )
     output:
-        "results/escsim_figures/U_eff_RMSE.jpg"
+        "results/escsim_figures/U_eff_Kolmogorov.jpg"
     log:
-        "logs/U_eff_RMSE.log"
+        "logs/U_eff_Kolmogorov.log"
     params:
         # Helper to extract unique population sizes and selection coefficients
         pop_size = lambda wildcards: exp_data["U_eff"]["normal"]["N"].iloc[0],
@@ -195,7 +195,7 @@ rule U_eff_RMSE:
         runtime=10
     shell:
         """
-        python workflow/scripts/visualize_sd_vs_rmse.py \
+        python workflow/scripts/visualize_sd_vs_ks.py \
             {params.pop_size} \
             -s {params.sel_coef} \
             {params.u_flags} \
@@ -259,7 +259,7 @@ rule mut_burden_dist:
         ueff_u  = lambda w: ",".join(map(str, config["experiments"]["U_eff"]["mut_rate_normal"])),
         
         # Collect all specific formatted sigmas required for the line files parsing
-        sigmas  = "0.0,0.25,0.5,0.75,1.0"
+        sigmas  = "0.0,0.25,0.5,1.0,2.0"
     threads: 1
     resources:
         mem_mb=5000,
@@ -349,7 +349,7 @@ def get_required_files_seff(wildcards):
     # Fixed files (.out and .txt)
     df_normal = exp_data["s_eff"]["normal"]
 
-    sd_multipliers = [0.0, 0.5, 0.75, 1.0]
+    sd_multipliers = [0.0, 0.5, 1.0, 2.0]
     for _, row in df_normal.iterrows():
         # Estimates
         files.append(f"results/coalescent_densities/fixed/N{row['N']}_U{row['U']}_s{row['s']}.out")
@@ -371,7 +371,7 @@ def get_required_files_ueff(wildcards):
     # Fixed files (.out and .txt)
     df_normal = exp_data["U_eff"]["normal"]
 
-    sd_multipliers = [0.0, 0.5, 0.75, 1.0]
+    sd_multipliers = [0.0, 0.5, 1.0, 2.0]
     for _, row in df_normal.iterrows():
         # Estimates
         files.append(f"results/coalescent_densities/fixed/N{row['N']}_U{row['U']}_s{row['s']}.out")
@@ -401,7 +401,7 @@ rule verify_s_eff:
         # Expands selection values cleanly into CLI tokens: "-s 0.0004 -s 0.001 -s 0.004"
         s_flags  = lambda wildcards: "-s " + ",".join([str(s) for s in exp_data["s_eff"]["normal"]["s"].unique()]),
         # Formats list into distinct parameter tokens: "-sd 0.0 -sd 0.5 -sd 1.0"
-        sd_flags = "-sd " + ",".join([str(sig) for sig in [0.0, 0.5, 0.75, 1.0]])
+        sd_flags = "-sd " + ",".join([str(sig) for sig in [0.0, 0.5, 1.0, 2.0]])
     threads: 1
     resources:
         mem_mb=5000,
@@ -430,7 +430,7 @@ rule verify_U_eff:
         sel_coef  = lambda wildcards: exp_data["U_eff"]["normal"]["s"].iloc[0],
         # Expands mutation values cleanly into CLI tokens: "-u 0.006 -u 0.01 -u 0.0001"
         u_flags   = lambda wildcards: "-u " + ",".join([str(u) for u in exp_data["U_eff"]["normal"]["U"].unique()]),
-        sd_flags = "-sd " + ",".join([str(sig) for sig in [0.0, 0.5, 0.75, 1.0]])
+        sd_flags = "-sd " + ",".join([str(sig) for sig in [0.0, 0.5, 1.0, 2.0]])
     threads: 1
     resources:
         mem_mb=5000,

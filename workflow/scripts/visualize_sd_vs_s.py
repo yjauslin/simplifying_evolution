@@ -68,32 +68,21 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
 
             s_s_eff = df['s'] / s
 
-            # Perform linear regression on the data to find the trend line
-            slope, intercept, r_value, p_value, std_err = linregress(df['sd/s'], df['s'])
-            # Calculate the coefficient of determination (R-squared) to assess the goodness of fit
-            r_squared = r_value**2
+            sns.scatterplot(x='sd/s', y='s', data=df, ax=ax1, color=colors[i], marker=markers[i], s=25, label=f'$s_{{normal}}={s}$')
 
-            # Generate a range of x values for plotting the trend line
-            x_range = np.linspace(df['sd/s'].min(), df['sd/s'].max(), 100)
-            # Calculate the corresponding y values for the trend line using the linear regression parameters
-            y_trend = slope * x_range + intercept
-
-            sns.scatterplot(x='sd/s', y='s', data=df, ax=ax1, color=colors[i], marker=markers[i], s=25, label=f'$s={s} (R^2={r_squared:.3f})$')
-            # Plot the trend line with a dashed black line and include the R-squared value in the label
-            ax1.plot(x_range, y_trend, color='black', linestyle='--', linewidth=1)
-
-            sns.scatterplot(x=df['sd/s'], y=s_s_eff, ax=ax2, color=colors[i], marker=markers[i], s=25, label=f'$s={s}$')
+            # relative effective selection coefficient vs sd/s
+            sns.scatterplot(x=df['sd/s'], y=s_s_eff, ax=ax2, color=colors[i], marker=markers[i], s=25, label=f'$s_{{normal}}={s}$')
         ax1.set_ylim(-0.05*min(sel_coef), max(sel_coef) * 1.1)
-        ax1.set_xlabel(r"$\sigma/s$", fontsize=10, labelpad=6)
-        ax1.set_ylabel(r"effective selection coefficient", fontsize=10, labelpad=6)
+        ax1.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=10, labelpad=6)
+        ax1.set_ylabel(r"Effective Selection Coefficient", fontsize=10, labelpad=6)
         ax1.tick_params(axis='both', which='major', labelsize=8)
         ax1.legend(title=r"Selection coefficient", title_fontsize=10, loc="best", ncol=1, frameon=False, fontsize=8)
         fig1.tight_layout(pad=0.1)
         fig1.savefig(os.path.join(output, f"effective_selection_coefficient.jpg"), dpi=600, bbox_inches='tight')
 
         ax2.set_ylim(0, 1)
-        ax2.set_xlabel(r"$\sigma/s$", fontsize=10, labelpad=6)
-        ax2.set_ylabel(r"effective selection coefficient / $s$", fontsize=10, labelpad=6)
+        ax2.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=10, labelpad=6)
+        ax2.set_ylabel(f"Effective Selection Coefficient / $s_{{normal}}$", fontsize=10, labelpad=6)
         ax2.tick_params(axis='both', which='major', labelsize=8)
         ax2.legend(title=r"Selection coefficient", title_fontsize=10, fontsize=8, loc="best", frameon=False)
         fig2.tight_layout(pad=0.1)
@@ -110,33 +99,23 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
 
             u_eff_u = df['U'] / u
 
-            # Perform linear regression on the data to find the trend line
-            slope, intercept, r_value, p_value, std_err = linregress(df['sd/s'], df['U'])
-            # Calculate the coefficient of determination (R-squared) to assess the goodness of fit
-            r_squared = r_value**2
+            sns.scatterplot(x='sd/s', y='U', data=df, ax=ax1, label=f'$U_{{dnormal}}={u}$', color=colors[i], marker=markers[i], s=25)
 
-            # Generate a range of x values for plotting the trend line
-            x_range = np.linspace(df['sd/s'].min(), df['sd/s'].max(), 100)
-            # Calculate the corresponding y values for the trend line using the linear regression parameters
-            y_trend = slope * x_range + intercept
-
-            sns.scatterplot(x='sd/s', y='U', data=df, ax=ax1, label=f'$U_d={u} (R^2={r_squared:.3f})$', color=colors[i], marker=markers[i], s=25)
-            # Plot the trend line with a dashed black line and include the R-squared value in the label
-            ax1.plot(x_range, y_trend, color='black', linestyle='--')
-            sns.scatterplot(x=df['sd/s'], y=u_eff_u, ax=ax2, color=colors[i], marker=markers[i], s=25, label=f'$U_d={u}$')
+            # relative effective mutation rate vs sd/s
+            sns.scatterplot(x=df['sd/s'], y=u_eff_u, ax=ax2, color=colors[i], marker=markers[i], s=25, label=f'$U_{{dnormal}}={u}$')
 
 
         ax1.set_ylim(-0.05*min(mut_rate), max(mut_rate) * 1.1)
-        ax1.set_xlabel(r"$\sigma/s$", fontsize=10, labelpad=6)
-        ax1.set_ylabel(r"effective mutation rate", fontsize=10, labelpad=6)
+        ax1.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=10, labelpad=6)
+        ax1.set_ylabel(r"Effective Mutation Rate", fontsize=10, labelpad=6)
         ax1.tick_params(axis='both', which='major', labelsize=8)
         ax1.legend(title=r"Mutation rate", title_fontsize=10, fontsize=8, loc="best", ncol=1, frameon=False)
         fig1.tight_layout(pad=0.1)
         fig1.savefig(os.path.join(output, f"effective_mutation_rate.jpg"), dpi=600, bbox_inches='tight')
 
         ax2.set_ylim(0, 1.1)
-        ax2.set_xlabel(r"$\sigma/s$", fontsize=10, labelpad=6)
-        ax2.set_ylabel(r"effective mutation rate / $U_d$", fontsize=10, labelpad=6)
+        ax2.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=10, labelpad=6)
+        ax2.set_ylabel(f"Effective Mutation Rate / $U_{{dnormal}}$", fontsize=10, labelpad=6)
         ax2.tick_params(axis='both', which='major', labelsize=8)
         ax2.legend(title=r"Mutation rate", title_fontsize=10, loc="best", ncol=1, frameon=False, fontsize=8)
         fig2.tight_layout(pad=0.1)

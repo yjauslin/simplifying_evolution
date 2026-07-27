@@ -114,11 +114,11 @@ def main(input_dir, output_dir, sel_coef, mut_rate, pop_size):
         return
 
     # Final plot adjustments
-    ax.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
+    ax.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=11, labelpad=6)
     ax.set_ylabel(r"Relative Click Rate", fontsize=11, labelpad=6)
     ax.tick_params(axis='both', which='major', labelsize=9)
     
-    title_text = r"Selection coefficient" if plot_by_s else r"Mutation rate"
+    title_text = f"$s_{{normal}}$" if plot_by_s else f"$U_{{dnormal}}$"
     ax.legend(title=title_text, title_fontsize=10, fontsize=8, loc="best", frameon=False)
     
     fig.tight_layout(pad=0.1)

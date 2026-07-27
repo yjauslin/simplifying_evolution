@@ -177,7 +177,10 @@ def get_mean_profile(df):
     
     # First pass: collect and find the longest profile
     for profile_str in df["profile"]:
-        p = np.fromstring(profile_str, sep=",", dtype=float)
+        try:
+            p = np.fromstring(profile_str, sep=",", dtype=float)
+        except TypeError:
+            p = np.array([profile_str], dtype=float)
         all_profiles.append(p)
         if len(p) > max_len:
             max_len = len(p)
@@ -268,9 +271,17 @@ def calc_coalescent_rates_per_class(mut_burden_profile, lineage_dist, pop_size):
     Returns:
     A numpy array representing the coalescent rates at the specified time point.
     """
-    # return coalescent rates per class as
+    # Create an array of zeros with the same shape/dtype as lineage_dist
+    coalescent_rates = np.zeros_like(lineage_dist, dtype=np.float64)
+
+    # Only calculate rates for classes where mut_burden_profile is strictly positive
+    mask = mut_burden_profile > 0
+
+    # calculate coalescent rates per class as
     # (lineage distribution)^2 / (population size * mutational burden profile)
-    return np.square(lineage_dist) / (pop_size * mut_burden_profile)
+    coalescent_rates[mask] = np.square(lineage_dist[mask]) / (pop_size * mut_burden_profile[mask])
+    
+    return coalescent_rates
 
 
 def calc_effective_coalescent_rates(mut_burden_profile, pop_size, mut_rate, velocity, time_points):

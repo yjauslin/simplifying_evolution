@@ -16,10 +16,23 @@ def visualize_rmse(input, output, axis_type):
 
     output_filename = f"{filename_without_ext}.jpg"
 
+    sns.set_context("paper")
+    sns.set_style("ticks")
+
+    plt.rcParams.update({
+        "text.usetex": False,
+        "mathtext.fontset": "cm",        
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+    })
+
+    fig_width = 426.79134 / 72.27
+    fig_height = fig_width / 1.618
+
 
     df = pd.read_csv(input, sep='\t')
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
     # Set x-axis label based on the axis_type flag
     if axis_type:
@@ -31,9 +44,9 @@ def visualize_rmse(input, output, axis_type):
 
     # Plot RMSE and Kolmogorov Smirnov statistics
     sns.scatterplot(x=x_col, y='RMSE', data=df, ax=ax, label='RMSE')
-    sns.scatterplot(x=x_col, y='Kolmogorov', data=df, ax=ax, label='Kolmogorov Smirnov')
+    sns.scatterplot(x=x_col, y='Kolmogorov', data=df, ax=ax, label='Kolmogorov-Smirnov')
 
-    plt.ylabel('RMSE / max |D|')
+    plt.ylabel('RMSE / Kolmogorov-Smirnov')
     plt.xticks(rotation=45)
     plt.tight_layout()
 

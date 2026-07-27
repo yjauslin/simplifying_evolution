@@ -242,7 +242,7 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
     fig_width = 426.79134 / 72.27  
     fig_height = fig_width * (num_rows / num_cols) * 1.2
 
-    fig, axes = plt.subplots(figsize=(fig_width, fig_height), sharey=True, sharex=True, 
+    fig, axes = plt.subplots(figsize=(fig_width, fig_height), sharey='row', sharex=True, 
     nrows=num_rows, ncols=num_cols)
     
     # Ensure axes is always a 2D array even if num_rows or num_cols == 1
@@ -466,7 +466,7 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
     
     # Add Column Titles on the top of the grid
     for col in range(num_cols):
-        axes[0, col].text(0.5, 1.12, f"$\\sigma = {sigma[col]} \\cdot s$", 
+        axes[0, col].text(0.5, 1.12, f"$\\sigma = {sigma[col]} \\cdot s_{{normal}}$", 
                           transform=axes[0, col].transAxes,
                           ha="center", va="bottom", fontsize=11)
 

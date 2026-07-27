@@ -58,7 +58,7 @@ def get_clean_dataframes_by_experiment(config):
             
             for s in exp["s_normal"]:
                 # Generate an array of evenly spaced selection coefficients (s_values) across the specified range
-                s_values = np.linspace(exp["s_range"][0] * s, s, n_sel_coef+1)
+                s_values = np.linspace(exp["s_range"][0] * s, exp["s_range"][1] * s, n_sel_coef+1)
                 for sel_coef in s_values:
                     # Format and append parameters for the fixed model: [Population Size, Mutation Rate, Selection Coefficient]
                     fixed_rows.append([pop_size, format_fs_flat(mut_rate), format_fs_flat(sel_coef)])
@@ -79,7 +79,7 @@ def get_clean_dataframes_by_experiment(config):
                 # Generate an array of evenly spaced mutation rates (U_values) symmetrically distributed around U
                 U_values = np.linspace(
                     exp["mut_rate_range"][0] * U,
-                    U,
+                    exp["mut_rate_range"][1] * U,
                     n_sel_coef+1,
                 )
                 for mut_rate in U_values:

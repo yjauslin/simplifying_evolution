@@ -65,15 +65,15 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
                 f"s_N{pop_size}_U{mut_rate[0]}_s{s}.txt")
             df = pd.read_csv(input_file, sep="\t")
 
-            sns.scatterplot(x='sd/s', y='RMSE', data=df, ax=ax, color=colors[i], marker=markers[i], s=25, label=f'$s={s}$')
+            sns.scatterplot(x='sd/s', y='min_Kolmogorov', data=df, ax=ax, color=colors[i], marker=markers[i], s=25, label=f'$s_{{normal}}={s}$')
 
-        ax.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
-        ax.set_ylabel(r"RMSE", fontsize=11, labelpad=6)
+        ax.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=11, labelpad=6)
+        ax.set_ylabel(r"Kolmogorov-Smirnov", fontsize=11, labelpad=6)
         ax.tick_params(axis='both', which='major', labelsize=9)
         ax.legend(title=r"Selection coefficient", title_fontsize=10, fontsize=9, loc="best", frameon=False)
         fig.tight_layout(pad=0.1)
-        fig.savefig(os.path.join(output, f"s_eff_RMSE.jpg"), dpi=600, bbox_inches='tight')
-    
+        fig.savefig(os.path.join(output, f"s_eff_Kolmogorov.jpg"), dpi=600, bbox_inches='tight')
+
     else:
         # for every provided mutation rate...
         for i in range(len(mut_rate)):
@@ -83,14 +83,14 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
                 f"U_N{pop_size}_U{u}_s{sel_coef[0]}.txt")
             df = pd.read_csv(input_file, sep="\t")
 
-            sns.scatterplot(x='sd/s', y='RMSE', data=df, ax=ax, label=f'$U_d={u}$', color=colors[i], marker=markers[i], s=25)
+            sns.scatterplot(x='sd/s', y='min_Kolmogorov', data=df, ax=ax, label=f'$U_d={u}$', color=colors[i], marker=markers[i], s=25)
 
-        ax.set_xlabel(r"$\sigma/s$", fontsize=11, labelpad=6)
-        ax.set_ylabel(r"RMSE", fontsize=11, labelpad=6)
+        ax.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=11, labelpad=6)
+        ax.set_ylabel(r"Kolmogorov-Smirnov", fontsize=11, labelpad=6)
         ax.tick_params(axis='both', which='major', labelsize=9)
         ax.legend(title=r"Mutation rate", title_fontsize=10, fontsize=9, loc="best", frameon=False)
         fig.tight_layout(pad=0.1)
-        fig.savefig(os.path.join(output, f"U_eff_RMSE.jpg"), dpi=600, bbox_inches='tight')
+        fig.savefig(os.path.join(output, f"U_eff_Kolmogorov.jpg"), dpi=600, bbox_inches='tight')
 
 if __name__ == "__main__":
     visualize_sd_vs_s()

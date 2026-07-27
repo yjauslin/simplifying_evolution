@@ -4,12 +4,12 @@ experiments:
     pop_size: [5000]
     mut_rate: [0.006]
     s_normal: [0.001, 0.004, 0.0004]
-    s_range: [0.001]
+    s_range: [1.5, 0.0]
   
   U_eff:
     pop_size: [5000]
     mut_rate_normal: [0.006, 0.02, 0.0001]
-    mut_rate_range: [0.001]
+    mut_rate_range: [1.5, 0.0]
     sel_coef: [0.001]
 
 constants:
@@ -18,6 +18,6 @@ constants:
   N_SIM: 1000
   N_SAM: 500
   ESTIMATE_N_SIM: 500
-  N_SIGMA: 100
-  SIGMA_RANGE: [0.0, 1]
-  N_SEL_COEF: 200
+  N_SIGMA: 200
+  SIGMA_RANGE: [0.0, 2]
+  N_SEL_COEF: 300
