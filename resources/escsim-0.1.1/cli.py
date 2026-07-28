@@ -394,7 +394,11 @@ def summarize(figure_pdf, input_folder, output, no_sep_sumplot, mode):
         ## Plot B
         # Plot mutational burden profile
         ax = axs[0, 1]
-        profiles = group['profile'].apply(lambda x: np.fromstring(x, sep=','))
+        try:
+            profiles = group['profile'].apply(lambda x: np.fromstring(x, sep=','))
+        except TypeError:
+            profiles = group['profile'].apply(lambda x: np.array([float(x)]))
+
         profiles_len = max([len(p) for p in profiles])
         profile_matrix = np.zeros((len(profiles), profiles_len))
         for i, p in enumerate(profiles):

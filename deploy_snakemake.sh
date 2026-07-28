@@ -9,7 +9,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=20G
-#SBATCH --time=7-00:00:00
+#SBATCH --time=14-00:00:00
 #SBATCH --partition="pcmpg_el8"
 
 # Exit immediately if a command exits with a non-zero status
@@ -18,7 +18,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------
 # CONFIGURATION
 # ---------------------------------------------------------------------
-ENV_PATH="/home/yjauslin/.conda/envs/coalescent_simulations"
+ENV_PATH=/data/users/yjauslin/conda_envs/coalescent_simulations
 SNAKEFILE="Snakefile"
 MAX_JOBS=50  # Maximum number of concurrent cluster jobs to submit
 PROJECT_DIR=/data/projects/p2026-0005_simplify_evolution/Yannick/simplifying_evolution/

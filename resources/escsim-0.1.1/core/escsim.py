@@ -32,8 +32,11 @@ def run_single_sim(cmd, sim_id, folder):
     # Fit linear model to calculate velocity
     time_flat = np.repeat(time, wave.shape[1])
     model_full = lm.LinearRegression().fit(time_flat.reshape(-1, 1), wave.flatten("C"))
-    velocity = model_full.coef_[0] / mutrate
-    
+    try:
+        velocity = model_full.coef_[0] / mutrate
+    except ZeroDivisionError:
+        velocity = 0
+
     # Fit linear model to calculate the profile
     mean_burden_pred = model_full.predict(time_flat.reshape(-1, 1)).reshape(wave.shape)
     wave = wave - mean_burden_pred

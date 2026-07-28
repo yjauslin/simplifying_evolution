@@ -4,42 +4,50 @@ import numpy as np
 
 def get_fixed_by_N_and_U_seff(wildcards):
     """
-    Finds ONLY the N_SEL_COEF fixed files generated for the specific 
+    Finds the exact fixed simulation files generated for the specific 
     baseline selection coefficient matching the current job.
     """
-    target_N = int(wildcards.N)
+    # 1. Standardize wildcards to exact string representations
+    target_N_str = str(int(wildcards.N))
     target_U_str = format_fs_flat(wildcards.U)
-    
-    # The wildcard {s} for the current job tells us exactly which 
-    # baseline selection coefficient we are evaluating right now.
     target_s_normal = float(wildcards.s)
 
-    # 1. Step 1: Re-calculate the specific slice of 's' values for THIS baseline
-    # We mirror the exact np.linspace calculation logic from your dataframe setup script
+    # 2. Re-calculate the specific sub-values using the exact same formatting
     n_sel_coef = config["constants"]["N_SEL_COEF"]
-    s_range_factor = config["experiments"]["s_eff"]["s_range"][0]
+    s_range_upper = config["experiments"]["s_eff"]["s_range"][0]
+    s_range_lower = config["experiments"]["s_eff"]["s_range"][1]
     
-    # Generate ONLY the sub-values belonging to the current baseline s
-    specific_s_values = np.linspace(s_range_factor * target_s_normal, target_s_normal, n_sel_coef)
-    
-    # 2. Step 2: Cross-reference with the DataFrame to ensure they exist
+    specific_s_values = np.linspace(s_range_upper * target_s_normal, s_range_lower * target_s_normal, n_sel_coef+1)
+    specific_s_strings = [format_fs_flat(s) for s in specific_s_values]
+
+    # 3. Extract the dataframe
     df = exp_data["s_eff"]["fixed"]
     
-    # Filter for rows matching N, U, and containing only our localized s-slice
+    # 4. Strict string matching across columns
     matched = df[
-        (df["N"].astype(int) == target_N) & 
+        (df["N"].astype(str) == target_N_str) & 
         (df["U"].astype(str) == target_U_str) & 
-        (df["s"].isin(specific_s_values))
+        (df["s"].astype(str).isin(specific_s_strings))
     ]
     
     matching_s_vals = list(set(matched["s"].tolist()))
     
-    # 3. Return the isolated cluster of files to Snakemake
+    # 5. FALLBACK: If a rare mismatch occurs, generate the path strings 
+    # directly from our formatted array so the shell command never fails.
+    if not matching_s_vals:
+        return expand(
+            "results/coalescent_densities/fixed/N{N}_U{U}_s{s}.out",
+            N=wildcards.N,
+            U=target_U_str,
+            s=specific_s_strings
+        )
+    
+    # 6. Return the isolated cluster of file names cleanly
     return expand(
         "results/coalescent_densities/fixed/N{N}_U{U}_s{s}.out",
         N=wildcards.N,
         U=target_U_str,
-        s=[format_fs_flat(s_val) for s_val in matching_s_vals]
+        s=[str(s_val) for s_val in matching_s_vals]
     )
 
 def get_fixed_by_N_and_s_ueff(wildcards):
@@ -53,12 +61,13 @@ def get_fixed_by_N_and_s_ueff(wildcards):
 
     # 1. Step 1: Re-calculate the specific slice of 'U' values
     n_sel_coef = config["constants"]["N_SEL_COEF"]
-    u_range_factor = config["experiments"]["U_eff"]["mut_rate_range"][0]
+    u_range_upper = config["experiments"]["U_eff"]["mut_rate_range"][0]
+    u_range_lower = config["experiments"]["U_eff"]["mut_rate_range"][1]
     
     specific_U_values = np.linspace(
-        u_range_factor * target_mut_rate_normal,
-        (1 + u_range_factor) * target_mut_rate_normal,
-        n_sel_coef
+        u_range_upper * target_mut_rate_normal,
+        u_range_lower * target_mut_rate_normal,
+        n_sel_coef+1
     )
     
     # CRITICAL FIX: Convert our calculated floats into the exact string 
@@ -189,40 +198,6 @@ rule get_min_value_s:
         -i results/comparisons/s_eff -o results/min_values/s_eff 2>&1 | tee {log}
         """
 
-rule effective_selection_coefficient:
-    input:
-        # Explicitly pull ONLY from the normal track to guarantee exactly 3 files
-        files=expand(
-            "results/min_values/s_eff/s_N{N}_U{U}_s{s}.txt",
-            zip,
-            N=exp_data["s_eff"]["normal"]["N"],
-            U=exp_data["s_eff"]["normal"]["U"],
-            s=exp_data["s_eff"]["normal"]["s"],
-        )
-    output:
-        "results/escsim_figures/effective_selection_coefficient.jpg"
-    log:
-        "logs/effective_selection_coefficient.log"
-    params:
-        # Dynamically extract unique baseline population size and mutation rate
-        pop_size = lambda wildcards: exp_data["s_eff"]["normal"]["N"].iloc[0],
-        mut_rate = lambda wildcards: exp_data["s_eff"]["normal"]["U"].iloc[0],
-        # Turns your unique s values cleanly into a string like "-s 0.0004 -s 0.001 -s 0.004"
-        s_flags = lambda wildcards: " ".join([f"-s {s}" for s in exp_data["s_eff"]["normal"]["s"].unique()])
-    threads: 1
-    resources:
-        mem_mb=5000,
-        runtime=10
-    shell:
-        """
-        python workflow/scripts/visualize_sd_vs_s.py \
-            {params.pop_size} \
-            -u {params.mut_rate} \
-            {params.s_flags} \
-            -i results/min_values/s_eff \
-            -o results/escsim_figures > {log} 2>&1
-        """
-
 # ==============================================================================
 # U_eff
 # ==============================================================================
@@ -268,7 +243,8 @@ rule visualize_comparisons_U:
         """
         python workflow/scripts/visualize_rmse.py \
             -i {input} \
-            -o results/escsim_figures/comparison_plots/U_eff 2>&1 | tee {log}
+            -o results/escsim_figures/comparison_plots/U_eff \
+            -t 2>&1 | tee {log}
         """
 
 rule get_min_value_U:
@@ -293,40 +269,6 @@ rule get_min_value_U:
             -i results/comparisons/U_eff \
             -o results/min_values/U_eff \
             --type > {log} 2>&1
-        """
-
-rule effective_mutation_rate:
-    input:
-        # Require all 3 baseline min_value files before running the plot
-        files=expand(
-            "results/min_values/U_eff/U_N{N}_U{U}_s{s}.txt",
-            zip,
-            N=exp_data["U_eff"]["normal"]["N"],
-            U=exp_data["U_eff"]["normal"]["U"],
-            s=exp_data["U_eff"]["normal"]["s"],
-        )
-    output:
-        "results/escsim_figures/effective_mutation_rate.jpg"
-    log:
-        "logs/effective_mutation_rate.log"
-    params:
-        # Helper to extract unique population sizes and selection coefficients
-        pop_size = lambda wildcards: exp_data["U_eff"]["normal"]["N"].iloc[0],
-        sel_coef = lambda wildcards: exp_data["U_eff"]["normal"]["s"].iloc[0],
-        # Turns the U values list cleanly into a string like "-u 0.012 -u 0.006 -u 0.003"
-        u_flags = lambda wildcards: " ".join([f"-u {u}" for u in exp_data["U_eff"]["normal"]["U"].unique()])
-    threads: 1
-    resources:
-        mem_mb=5000,
-        runtime=10
-    shell:
-        """
-        python workflow/scripts/visualize_sd_vs_s.py \
-            {params.pop_size} \
-            -s {params.sel_coef} \
-            {params.u_flags} \
-            -i results/min_values/U_eff \
-            -o results/escsim_figures > {log} 2>&1
         """
 
 # ==============================================================================
@@ -388,5 +330,35 @@ rule gather_min_values_U_eff_fixed:
         )
     output:
         "results/markers/min_values_U_eff_fixed.done"
+    shell:
+        "touch {output}"
+
+rule gather_visualize_comparisons_s:
+    input:
+        expand(
+            "results/escsim_figures/comparison_plots/s_eff/s_N{N}_U{U}_s{s}_sd{sigma}.jpg",
+            zip,
+            N=exp_data["s_eff"]["normal"]["N"],
+            U=exp_data["s_eff"]["normal"]["U"],
+            s=exp_data["s_eff"]["normal"]["s"],
+            sigma=exp_data["s_eff"]["normal"]["sigma"],
+        )
+    output:
+        "results/markers/visualize_comparisons_s.done"
+    shell:
+        "touch {output}"
+
+rule gather_visualize_comparisons_U:
+    input:
+        expand(
+            "results/escsim_figures/comparison_plots/U_eff/U_N{N}_U{U}_s{s}_sd{sigma}.jpg",
+            zip,
+            N=exp_data["U_eff"]["normal"]["N"],
+            U=exp_data["U_eff"]["normal"]["U"],
+            s=exp_data["U_eff"]["normal"]["s"],
+            sigma=exp_data["U_eff"]["normal"]["sigma"],
+        )
+    output:
+        "results/markers/visualize_comparisons_U.done"
     shell:
         "touch {output}"

@@ -8,23 +8,45 @@ import click
 @click.command()
 @click.option('--input', '-i', type=str, required=True, help='Input file')
 @click.option('--output', '-o', type=str, required=True, help='Output folder')
-def visualize_rmse(input, output):
+@click.option('--axis_type', '-t', is_flag=True, default=False,
+              help='If false x-axis corresponds to selection coefficient. If true x-axis corresponds to mutation rate.')
+def visualize_rmse(input, output, axis_type):
+    # Extract the filename without data-type to use for the output plot
     filename_without_ext = os.path.splitext(os.path.basename(input))[0]
 
     output_filename = f"{filename_without_ext}.jpg"
 
+    sns.set_context("paper")
+    sns.set_style("ticks")
+
+    plt.rcParams.update({
+        "text.usetex": False,
+        "mathtext.fontset": "cm",        
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+    })
+
+    fig_width = 426.79134 / 72.27
+    fig_height = fig_width / 1.618
+
 
     df = pd.read_csv(input, sep='\t')
 
-    sns.set_context("talk")
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Set x-axis label based on the axis_type flag
+    if axis_type:
+        x_col = 'U'
+        plt.xlabel('mutation rate')
+    else:
+        x_col = 's'
+        plt.xlabel('selection coefficient')
 
-    sns.scatterplot(x='s', y='RMSE', data=df, ax=ax, label='RMSE')
-    sns.scatterplot(x='s', y='Kolmogorov', data=df, ax=ax, label='Kolmogorov Smirnov')
+    # Plot RMSE and Kolmogorov Smirnov statistics
+    sns.scatterplot(x=x_col, y='RMSE', data=df, ax=ax, label='RMSE')
+    sns.scatterplot(x=x_col, y='Kolmogorov', data=df, ax=ax, label='Kolmogorov-Smirnov')
 
-    plt.xlabel('selection coefficient')
-    plt.ylabel('RMSE / max |D|')
+    plt.ylabel('RMSE / Kolmogorov-Smirnov')
     plt.xticks(rotation=45)
     plt.tight_layout()
 

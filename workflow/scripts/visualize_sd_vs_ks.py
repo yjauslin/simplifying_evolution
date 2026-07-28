@@ -6,7 +6,7 @@ import re
 import glob
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import linregress
+
 
 @click.command()
 @click.argument('pop_size', required=False, type=int, default=5000)
@@ -48,8 +48,7 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
     fig_width = 426.79134 / 72.27  
     fig_height = fig_width / 1.618
 
-    fig1, ax1 = plt.subplots(figsize=(fig_width, fig_height))
-    fig2, ax2 = plt.subplots(figsize=(fig_width, fig_height))
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
     # Set color palette based on the number of selection coefficients or mutation rates
     colors = sns.color_palette("colorblind", len(sel_coef) if len(sel_coef) > 1 else len(mut_rate))
@@ -66,27 +65,14 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
                 f"s_N{pop_size}_U{mut_rate[0]}_s{s}.txt")
             df = pd.read_csv(input_file, sep="\t")
 
-            s_s_eff = df['s'] / s
+            sns.scatterplot(x='sd/s', y='min_Kolmogorov', data=df, ax=ax, color=colors[i], marker=markers[i], s=25, label=f'$s_{{normal}}={s}$')
 
-            sns.scatterplot(x='sd/s', y='s', data=df, ax=ax1, color=colors[i], marker=markers[i], s=25, label=f'$s_{{normal}}={s}$')
-
-            # relative effective selection coefficient vs sd/s
-            sns.scatterplot(x=df['sd/s'], y=s_s_eff, ax=ax2, color=colors[i], marker=markers[i], s=25, label=f'$s_{{normal}}={s}$')
-        ax1.set_ylim(-0.05*min(sel_coef), max(sel_coef) * 1.1)
-        ax1.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=10, labelpad=6)
-        ax1.set_ylabel(r"Effective Selection Coefficient", fontsize=10, labelpad=6)
-        ax1.tick_params(axis='both', which='major', labelsize=8)
-        ax1.legend(title=r"Selection coefficient", title_fontsize=10, loc="best", ncol=1, frameon=False, fontsize=8)
-        fig1.tight_layout(pad=0.1)
-        fig1.savefig(os.path.join(output, f"effective_selection_coefficient.jpg"), dpi=600, bbox_inches='tight')
-
-        ax2.set_ylim(0, 1)
-        ax2.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=10, labelpad=6)
-        ax2.set_ylabel(f"Effective Selection Coefficient / $s_{{normal}}$", fontsize=10, labelpad=6)
-        ax2.tick_params(axis='both', which='major', labelsize=8)
-        ax2.legend(title=r"Selection coefficient", title_fontsize=10, fontsize=8, loc="best", frameon=False)
-        fig2.tight_layout(pad=0.1)
-        fig2.savefig(os.path.join(output, f"relative_effective_selection_coefficient.jpg"), dpi=600, bbox_inches='tight')
+        ax.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=11, labelpad=6)
+        ax.set_ylabel(r"Kolmogorov-Smirnov", fontsize=11, labelpad=6)
+        ax.tick_params(axis='both', which='major', labelsize=9)
+        ax.legend(title=r"Selection coefficient", title_fontsize=10, fontsize=9, loc="best", frameon=False)
+        fig.tight_layout(pad=0.1)
+        fig.savefig(os.path.join(output, f"s_eff_Kolmogorov.jpg"), dpi=600, bbox_inches='tight')
 
     else:
         # for every provided mutation rate...
@@ -97,29 +83,14 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
                 f"U_N{pop_size}_U{u}_s{sel_coef[0]}.txt")
             df = pd.read_csv(input_file, sep="\t")
 
-            u_eff_u = df['U'] / u
+            sns.scatterplot(x='sd/s', y='min_Kolmogorov', data=df, ax=ax, label=f'$U_d={u}$', color=colors[i], marker=markers[i], s=25)
 
-            sns.scatterplot(x='sd/s', y='U', data=df, ax=ax1, label=f'$U_{{dnormal}}={u}$', color=colors[i], marker=markers[i], s=25)
-
-            # relative effective mutation rate vs sd/s
-            sns.scatterplot(x=df['sd/s'], y=u_eff_u, ax=ax2, color=colors[i], marker=markers[i], s=25, label=f'$U_{{dnormal}}={u}$')
-
-
-        ax1.set_ylim(-0.05*min(mut_rate), max(mut_rate) * 1.1)
-        ax1.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=10, labelpad=6)
-        ax1.set_ylabel(r"Effective Mutation Rate", fontsize=10, labelpad=6)
-        ax1.tick_params(axis='both', which='major', labelsize=8)
-        ax1.legend(title=r"Mutation rate", title_fontsize=10, fontsize=8, loc="best", ncol=1, frameon=False)
-        fig1.tight_layout(pad=0.1)
-        fig1.savefig(os.path.join(output, f"effective_mutation_rate.jpg"), dpi=600, bbox_inches='tight')
-
-        ax2.set_ylim(0, 1.1)
-        ax2.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=10, labelpad=6)
-        ax2.set_ylabel(f"Effective Mutation Rate / $U_{{dnormal}}$", fontsize=10, labelpad=6)
-        ax2.tick_params(axis='both', which='major', labelsize=8)
-        ax2.legend(title=r"Mutation rate", title_fontsize=10, loc="best", ncol=1, frameon=False, fontsize=8)
-        fig2.tight_layout(pad=0.1)
-        fig2.savefig(os.path.join(output, f"relative_effective_mutation_rate.jpg"), dpi=600, bbox_inches='tight')
+        ax.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=11, labelpad=6)
+        ax.set_ylabel(r"Kolmogorov-Smirnov", fontsize=11, labelpad=6)
+        ax.tick_params(axis='both', which='major', labelsize=9)
+        ax.legend(title=r"Mutation rate", title_fontsize=10, fontsize=9, loc="best", frameon=False)
+        fig.tight_layout(pad=0.1)
+        fig.savefig(os.path.join(output, f"U_eff_Kolmogorov.jpg"), dpi=600, bbox_inches='tight')
 
 if __name__ == "__main__":
     visualize_sd_vs_s()

@@ -54,8 +54,8 @@ def create_new_page(file_name, cmap):
 @click.command()
 @click.argument('input_file', type=click.Path(exists=True))
 @click.option('--output_folder', '-o', default='results/escsim_figures', help="Directory to save the PDF to.")
-@click.option('--mode', '-m', default='f', help="Mode 'n' for normal, 'f' for fixed")
-def summarize_waves(input_file, output_folder, mode):
+@click.option('--limit', '-l', type=int, default=None, help="Maximum number of matrices to visualize (default: all).")
+def summarize_waves(input_file, output_folder, limit):
     file_path = Path(input_file)
     os.makedirs(output_folder, exist_ok=True)
     
@@ -78,6 +78,9 @@ def summarize_waves(input_file, output_folder, mode):
         
         # Process the single specified file
         for i, (times, wave_matrix) in enumerate(load_multi_wave_file(file_path)):
+            # Break early if a limit is defined and we've reached it
+            if limit is not None and i >= limit:
+                break
             
             # If we hit 12 plots or it's the very first matrix
             if plot_count % 12 == 0:

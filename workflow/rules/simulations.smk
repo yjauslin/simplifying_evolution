@@ -16,11 +16,11 @@ def get_mem_mb(wildcards):
 
 def get_num_sim(wildcards):
     """
-    Determine number of simulations from N, U and s.
+    Determine number of simulations from N, U, s, and optionally sigma.
 
     Uses:
-    - wildcards.s if available
-    - otherwise global S_FIXED
+    - wildcards.s if available, otherwise global S_FIXED
+    - wildcards.sigma if available
     """
 
     float_pattern = re.compile(r"^-?\d*\.?\d+(?:[eE][+-]?\d+)?$")
@@ -40,13 +40,25 @@ def get_num_sim(wildcards):
     s_raw = getattr(wildcards, "s", None)
     s = parse_float("s", s_raw) if s_raw is not None else S_FIXED
 
-    # safety check
+    # optional: sigma may be missing
+    sigma_raw = getattr(wildcards, "sigma", None)
+    sigma = parse_float("sigma", sigma_raw)
+
+    # safety check for s = 0
     if s == 0:
         return config["constants"]["ESTIMATE_N_SIM"]
 
+    # If sigma is present, check its ratio to s
+    if sigma is not None:
+        if sigma / s > 0.25:
+            return config["constants"]["ESTIMATE_N_SIM"]
+
+    # original calculation
     phi = N * s * math.exp(-U / s)
 
-    return 100 if phi > 1 else config["constants"]["ESTIMATE_N_SIM"]
+    n_sim = config["constants"]["ESTIMATE_N_SIM"] if phi < 1 or U <= 0.001 else 100
+
+    return n_sim
 
 rule escsim_run_fixed:
     wildcard_constraints:
@@ -80,8 +92,6 @@ rule escsim_run_fixed:
 
 rule escsim_summarize_fixed:
     input:
-        # OPTIMIZATION: Relies on localized sub-DAG batch execution triggers 
-        # instead of loading global wildcard string arrays into master memory
         "results/markers/escsim_run_s_eff_fixed.done",
         "results/markers/escsim_run_U_eff_fixed.done"
     output:
@@ -90,9 +100,9 @@ rule escsim_summarize_fixed:
     log:
         "logs/escsim_summarize_fixed.log"
     resources:
-        mem_mb=5*1000,        
-        runtime=60,
-    threads: 4
+        mem_mb=50*1000,        
+        runtime=4320,
+    threads: 20
     shell:
         """
         escsim summarize \
@@ -142,9 +152,9 @@ rule escsim_summarize_normal:
     log:
         "logs/escsim_summarize_normal.log"
     resources:
-        mem_mb=5*1000,        
-        runtime=60,
-    threads: 4
+        mem_mb=50*1000,        
+        runtime=4320,
+    threads: 20
     shell:
         """
         escsim summarize \
