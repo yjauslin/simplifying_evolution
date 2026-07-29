@@ -38,6 +38,8 @@ echo "Loading conda module..."
 module load Anaconda3/2022.05 || echo "Conda module not found, relying on shell defaults."
 
 export PATH="$ENV_PATH/bin:$PATH"
+# LaTex engine
+export PATH="$HOME/.TinyTeX/bin/x86_64-linux:$PATH"
 
 # 4. Run Snakemake with the Slurm Executor
 echo "Executing Snakemake pipeline via Slurm..."

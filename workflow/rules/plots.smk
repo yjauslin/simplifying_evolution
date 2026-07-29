@@ -78,7 +78,8 @@ rule effective_selection_coefficient:
         )
     output:
         "results/escsim_figures/effective_selection_coefficient.jpg",
-        "results/escsim_figures/relative_effective_selection_coefficient.jpg"
+        "results/escsim_figures/relative_effective_selection_coefficient.jpg",
+        "results/escsim_figures/combined_effective_selection_coefficient.jpg"
     log:
         "logs/effective_selection_coefficient.log"
     params:
@@ -113,7 +114,8 @@ rule effective_mutation_rate:
         )
     output:
         "results/escsim_figures/effective_mutation_rate.jpg",
-        "results/escsim_figures/relative_effective_mutation_rate.jpg"
+        "results/escsim_figures/relative_effective_mutation_rate.jpg",
+        "results/escsim_figures/combined_effective_mutation_rate.jpg"
     log:
         "logs/effective_mutation_rate.log"
     params:
@@ -275,70 +277,44 @@ rule mut_burden_dist:
         -o results/escsim_figures > {log} 2>&1
         """
 
-rule sel_coeff_velocity:
+rule visualize_velocity:
     input:
-        files=expand(
+        s_files=expand(
             "results/escsim/normal/escsim_N{N}_U{U}_s{s}_sd{sigma}.out",
             zip,
             N=exp_data["s_eff"]["normal"]["N"],
             U=exp_data["s_eff"]["normal"]["U"],
             s=exp_data["s_eff"]["normal"]["s"],
             sigma=exp_data["s_eff"]["normal"]["sigma"],
-        )
-    output:
-        "results/escsim_figures/s_velocity.jpg"
-    log:
-        "logs/s_velocity.log"
-    params:
-        # Dynamically extract unique baseline population size and mutation rate
-        pop_size = lambda wildcards: exp_data["s_eff"]["normal"]["N"].iloc[0],
-        mut_rate = lambda wildcards: exp_data["s_eff"]["normal"]["U"].iloc[0],
-        # Turns unique s values cleanly into a string like "-s 0.0004 -s 0.001 -s 0.004"
-        s_flags = lambda wildcards: " ".join([f"-s {s}" for s in exp_data["s_eff"]["normal"]["s"].unique()])
-    threads: 1
-    resources:
-        mem_mb=5000,
-        runtime=10
-    shell:
-        """
-        python workflow/scripts/visualize_velocity_vs_sd.py \
-            {params.pop_size} \
-            {params.s_flags} \
-            -u {params.mut_rate} \
-            -i results/escsim/normal \
-            -o results/escsim_figures > {log} 2>&1
-        """
-
-rule mut_rate_velocity:
-    input:
-        files=expand(
+        ),
+        u_files=expand(
             "results/escsim/normal/escsim_N{N}_U{U}_s{s}_sd{sigma}.out",
             zip,
             N=exp_data["U_eff"]["normal"]["N"],
             U=exp_data["U_eff"]["normal"]["U"],
             s=exp_data["U_eff"]["normal"]["s"],
             sigma=exp_data["U_eff"]["normal"]["sigma"],
-        )
+        ),
     output:
-        "results/escsim_figures/u_velocity.jpg"
+        s_plot="results/escsim_figures/s_velocity.jpg",
+        u_plot="results/escsim_figures/u_velocity.jpg",
+        combined_plot="results/escsim_figures/combined_velocity.jpg",
     log:
-        "logs/u_velocity.log"
+        "logs/visualize_velocity.log",
     params:
-        # Dynamically extract unique baseline population size and mutation rate
-        pop_size = lambda wildcards: exp_data["U_eff"]["normal"]["N"].iloc[0],
-        sel_coef = lambda wildcards: exp_data["U_eff"]["normal"]["s"].iloc[0],
-        # Turns the U values list cleanly into a string like "-u 0.012 -u 0.006 -u 0.003"
-        u_flags = lambda wildcards: " ".join([f"-u {u}" for u in exp_data["U_eff"]["normal"]["U"].unique()])
+        pop_size=lambda wildcards: exp_data["s_eff"]["normal"]["N"].iloc[0],
+        s_flags=lambda wildcards: " ".join([f"-s {s}" for s in exp_data["s_eff"]["normal"]["s"].unique()]),
+        u_flags=lambda wildcards: " ".join([f"-u {u}" for u in exp_data["U_eff"]["normal"]["U"].unique()]),
     threads: 1
     resources:
         mem_mb=5000,
-        runtime=10
+        runtime=10,
     shell:
         """
         python workflow/scripts/visualize_velocity_vs_sd.py \
             {params.pop_size} \
-            -s {params.sel_coef} \
-             {params.u_flags} \
+            {params.s_flags} \
+            {params.u_flags} \
             -i results/escsim/normal \
             -o results/escsim_figures > {log} 2>&1
         """

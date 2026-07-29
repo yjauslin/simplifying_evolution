@@ -43,15 +43,26 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
     # The number of columns is determined by whichever list has more entries
     num_cols = max(len(sel_coef), len(mut_rate))
     
-    # Grab a colorblind-friendly palette using Seaborn based on the ratios
-    colors = sns.color_palette("colorblind", n_colors=len(sigma))
+    # Grab a colorblind-friendly palette
+    colors = [
+        "#3A86FF",  # 1. Vibrant Blue
+        "#FFBE0B",  # 2. Warm Ochre Yellow
+        "#FF006E",  # 3. Vivid Magenta/Pink
+        "#8338EC",  # 4. Deep Purple
+        "#FB5607",  # 5. Bright Orange
+        "#06D6A0",  # 6. Fresh Mint Green
+        "#118AB2",  # 7. Deep Teal Blue
+        "#70E000",  # 8. Electric Lime Green
+        "#D80032",  # 9. Crimson Red
+        "#F72585",  # 10. Neon Rose
+    ]
 
     sns.set_context("paper", font_scale=1.05)
     sns.set_style("ticks")
 
     # Cluster-safe typography using Matplotlib's internal TeX parser engine
     plt.rcParams.update({
-        "text.usetex": False, 
+        "text.usetex": True, 
         "mathtext.fontset": "cm",        
         "font.family": "serif",
         "font.serif": ["Computer Modern Roman"],
@@ -59,14 +70,11 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
 
     # Figures correspond to column text boundaries in standard LaTeX templates
     fig_width = 426.79134 / 72.27  
-    fig_height = fig_width * (num_rows / num_cols) * 1.15
+    fig_height = fig_width * (num_rows / num_cols) * 1.25
 
     # Enforce clear grid alignment by sharing contextual row and column limits
     fig, axes = plt.subplots(figsize=(fig_width, fig_height), sharey="row", nrows=num_rows, ncols=num_cols)
     axes = np.atleast_2d(axes)
-    
-    # Adjusted left margin to 0.15 to ensure the supylabel has plenty of breathing room
-    fig.subplots_adjust(hspace=0.4, wspace=0.15, left=0.15, bottom=0.15)
 
     for col in range(num_cols):
         # --- Row 0: Fixed mutation rate u[0], varying selection coefficient ---
@@ -74,20 +82,19 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
         u_top = mut_rate[0]
         ax_top = axes[0, col]
         
-        ax_top.set_title(f"$U_d$ = {u_top}; $s_{{normal}}$ = {s_top}", fontsize=9)
+        ax_top.set_title(f"$s_{{normal}}$ = {s_top}; $U_d$ = {u_top}", fontsize=9, pad=6)
         
         # --- Row 1: Fixed selection coefficient s[0], varying mutation rate ---
         s_bottom = sel_coef[0]
         u_bottom = mut_rate[min(col, len(mut_rate) - 1)]
         ax_bottom = axes[1, col]
         
-        ax_bottom.set_title(f"$s_{{normal}}$ = {s_bottom}; $U_d$ = {u_bottom}", fontsize=9)
+        ax_bottom.set_title(f"$s_{{normal}}$ = {s_bottom}; $U_d$ = {u_bottom}", fontsize=9, pad=6)
 
         # Draw execution threads across both active horizontal frames sequentially
         for row, (current_s, current_u, ax) in enumerate([(s_top, u_top, ax_top), (s_bottom, u_bottom, ax_bottom)]):
             
-            # 1. Retrieve all file candidates for this (N, U, s) combination first
-            # Pattern helps narrow down search surface to minimize filesystem calls
+            # Retrieve all file candidates for this (N, U, s) combination first
             glob_pattern = os.path.join(input_dir, f"escsim_N{pop_size}_U{current_u}_s{current_s}_sd*.out")
             matching_files = glob.glob(glob_pattern)
             
@@ -96,14 +103,12 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
                 # Calculate what the standard deviation should mathematically be
                 target_sd = ratio * current_s
                 
-                # 2. Iterate matches and perform floating point-safe check
+                # Iterate matches and perform floating point-safe check
                 target_filepath = None
                 for filepath in matching_files:
-                    # Match decimal, negative, or scientific notation in the filename
                     match = re.search(r"_sd([\deE.+-]+)\.out", os.path.basename(filepath))
                     if match:
                         file_sd = float(match.group(1))
-                        # Float-safe validation check
                         if np.isclose(file_sd, target_sd, rtol=1e-5, atol=1e-8):
                             target_filepath = filepath
                             break
@@ -132,16 +137,33 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
 
             ax.grid(False)
 
-    # Use unified global labels
-    fig.supylabel("Frequency", fontsize=11, x=0.01)
-    fig.supxlabel("Mutational burden class $h_k$", fontsize=11, y=0.02)
+    # Row labels 'a' and 'b' positioned clearly above the leftmost subplots
+    axes[0, 0].text(-0.28, 1.18, 'a', transform=axes[0, 0].transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
+    axes[1, 0].text(-0.28, 1.18, 'b', transform=axes[1, 0].transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
 
-    # Isolated legend declarations to prevent plot occlusion
-    axes[0, 0].legend(loc='best', frameon=False, fontsize=8)
-    axes[1, 0].legend(loc='best', frameon=False, fontsize=8)
+    # Y-label and X-label positioned globally
+    fig.supylabel("Frequency", fontsize=11, x=0.04)
+    fig.supxlabel("Mutational burden class $h_k$", fontsize=11, y=0.01)
+
+    # Collect legend handles and labels from the first subplot
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+
+    # Create a single global top-bar legend
+    if handles:
+        fig.legend(
+            handles, labels, 
+            loc='upper center', 
+            bbox_to_anchor=(0.52, 1.02), 
+            ncol=len(sigma), 
+            frameon=False, 
+            fontsize=10
+        )
 
     os.makedirs(output_dir, exist_ok=True)
-    fig.tight_layout(pad=0.2)
+    
+    # Adjust layout bounds and add explicit horizontal spacing (wspace) between plot columns
+    fig.tight_layout(pad=0.2, rect=[0.10, 0.04, 0.98, 0.93])
+    fig.subplots_adjust(wspace=0.35, hspace=0.45)
     
     output_path = os.path.join(output_dir, "mut_burden_dist.jpg")
     fig.savefig(output_path, dpi=600, bbox_inches='tight')

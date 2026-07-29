@@ -227,7 +227,7 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
     sns.set_style("ticks")
 
     plt.rcParams.update({
-        "text.usetex": False,
+        "text.usetex": True,
         "mathtext.fontset": "cm",
         "font.family": "serif",
         "font.serif": ["Computer Modern Roman"],
@@ -260,8 +260,9 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
     # if more selection coefficients than mutation rates are provided, we will verify effective selection coefficient,  otherwise we will verify effective mutation rate
     if s_eff_mode:
         click.echo(f"[INFO] Visualizing coalescent densities for effective selection coefficients with population size {pop_size} and mutation rate {mut_rate[0]}...")
+        sel_coef_sorted = sorted(sel_coef)
         for row in range(num_rows):
-            s = sel_coef[row]
+            s = sel_coef_sorted[row]
             u = mut_rate[0]
             sd = [s * sig for sig in sigma]
             click.echo(sd)
@@ -340,12 +341,16 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
                 density_normal = np.array(df_normal["density"].iloc[0].split(","), dtype=float)
                 time = np.array(df_fixed["time"].iloc[0].split(","), dtype=float)
 
-                # Visualizing coalescent densitiy estimates
-                sns.lineplot(x=time, y=density_fixed, ax=ax, label="fixed", color=color_fixed, lw=1.5)
-                sns.lineplot(x=time, y=density_normal, ax=ax, linestyle="--", label="normal", color=color_normal, lw=1.5)
+                formatter = ScalarFormatter(useMathText=True)
+                formatter.set_scientific(False)
 
+                # Visualizing coalescent densitiy estimates
+                sns.lineplot(x=time, y=density_fixed*1e4, ax=ax, label="fixed", color=color_fixed, lw=1.5)
+                sns.lineplot(x=time, y=density_normal*1e4, ax=ax, linestyle="--", label="normal", color=color_normal, lw=1.5)
+
+                simprobs_scaled = simprobs*1e4
                 # visualizing simulated densities as bar plots
-                ax.bar(bin_edges[:-1], simprobs, width=bin_widths, alpha=0.35, label="WF_normal", color=color_wf_fixed, align="edge")
+                ax.bar(bin_edges[:-1], simprobs_scaled, width=bin_widths, alpha=0.5, label="WF normal", color=color_wf_fixed, align="edge")
 
                 # Axis formatting per subplot
                 ax.set_xlim(0, 13000)
@@ -356,12 +361,13 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
 
             # Add Row Titles on the right-hand side of the grid
             right_ax = axes[row, -1]
-            right_ax.text(1.05, 0.5, f"s = {s}", transform=right_ax.transAxes, 
-                          rotation=-90, va='center', ha='left', fontsize=10)
+            right_ax.text(1.05, 0.5, f"$s_{{normal}} = {s}$", transform=right_ax.transAxes, 
+                          rotation=-90, va='center', ha='left', fontsize=11)
     
     # if more mutation rates than selection coefficients are provided, we will verify effective mutation rate, otherwise we will verify effective selection coefficient
     else:
         click.echo(f"[INFO] Visualizing coalescent densities for effective mutation rates with population size {pop_size} and selection coefficient {sel_coef[0]}...")
+        mut_rate_sorted = sorted(mut_rate, reverse=True)
         for row in range(num_rows):
             # When tracking changing mutation rates, selection coefficient is held constant at index 0
             s = sel_coef[0]
@@ -444,13 +450,18 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
                 density_normal = np.array(df_normal["density"].iloc[0].split(","), dtype=float)
                 time = np.array(df_fixed["time"].iloc[0].split(","), dtype=float)
 
+                formatter = ScalarFormatter(useMathText=True)
+                formatter.set_scientific(False)
+
                 # Visualizing coalescent densities
-                sns.lineplot(x=time, y=density_fixed, ax=ax, label=f"fixed", color=color_fixed, lw=1.5)
-                sns.lineplot(x=time, y=density_normal, ax=ax, linestyle="--", label=f"normal", color=color_normal, lw=1.5)
+                sns.lineplot(x=time, y=density_fixed*1e4, ax=ax, label=f"fixed", color=color_fixed, lw=1.5)
+                sns.lineplot(x=time, y=density_normal*1e4, ax=ax, linestyle="--", label=f"normal", color=color_normal, lw=1.5)
+
+                simprobs_scaled = simprobs*1e4
 
                 # Visualizing simulated densities as bar plots
-                ax.bar(bin_edges[:-1], simprobs, width=bin_widths, alpha=0.35, label=f"WF normal", color=color_wf_fixed, align="edge")
-                
+                ax.bar(bin_edges[:-1], simprobs_scaled, width=bin_widths, alpha=0.5, label=f"WF normal", color=color_wf_fixed, align="edge")
+
                 # Axis formatting per subplot
                 ax.xaxis.set_major_formatter(formatter)
                 ax.yaxis.set_major_formatter(formatter)
@@ -461,22 +472,24 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
 
             # Add Row Titles on the right-hand side of the grid (Labeling U_d instead of s)
             right_ax = axes[row, -1]
-            right_ax.text(1.05, 0.5, f"$U_d$ = {u}", transform=right_ax.transAxes, 
+            right_ax.text(1.05, 0.5, f"$U_{{normal}}$ = {u}", transform=right_ax.transAxes, 
                           rotation=-90, va='center', ha='left', fontsize=11)
     
     # Add Column Titles on the top of the grid
     for col in range(num_cols):
-        axes[0, col].text(0.5, 1.12, f"$\\sigma = {sigma[col]} \\cdot s_{{normal}}$", 
+        axes[0, col].text(0.5, 1.12, f"$\\sigma = {sigma[col]} \\times s_{{normal}}$", 
                           transform=axes[0, col].transAxes,
                           ha="center", va="bottom", fontsize=11)
 
     # Establish global labels centered perfectly across all columns and rows
-    fig.supylabel(r"Coalescent Density", fontsize=11, x=0.005)
-    fig.supxlabel("Time (Generations)", fontsize=11, y=0.01)
+    fig.supylabel(r"Coalescent Density ($\times 10^{-4}$)", fontsize=11, x=-0.02)
+    fig.supxlabel("Time (Generations)", fontsize=11, y=-0.02)
+
+    fig.subplots_adjust(bottom=0.12, left=0.10)
     
     # Extract global legend handles from the first plot
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.08), ncol=num_cols, fontsize=10, frameon=False)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.08), ncol=num_cols, fontsize=11, frameon=False)
 
     # Remove individual axis legends to avoid duplicates
     for ax in axes.flat:
