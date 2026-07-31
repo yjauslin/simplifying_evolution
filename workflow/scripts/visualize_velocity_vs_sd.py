@@ -3,224 +3,161 @@ import numpy as np
 import pandas as pd
 import os
 import re
-import glob
+from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import linregress
-from matplotlib.ticker import ScalarFormatter
+
+# Assuming this custom module exists in your path
+from calc_coalescent_density import get_mean_velocity
 
 @click.command()
+@click.option('--input-dir', '-i', type=click.Path(exists=True, file_okay=False, dir_okay=True), required=True,
+              help='Path to the directory containing the data files.')
+@click.option('--output-dir', '-o', type=click.Path(file_okay=False, dir_okay=True), required=True,
+              help='Path to the directory where the output files will be saved.')
+@click.option('--sel_coef', '-s', required=False, default=(0.001,), type=float, multiple=True, help='Selection coefficient(s)')
+@click.option('--mut_rate', '-u', required=False, default=(0.006,), type=float, multiple=True, help='Mutation rate(s)')
 @click.argument('pop_size', required=False, type=int, default=5000)
-@click.option('--sel_coef', '-s', required=False, default=(0.001,), type=float, multiple=True, help='Selection coefficient')
-@click.option('--mut_rate', '-u', required=False, default=(0.006,), type=float, multiple=True, help='Mutation rate')
-@click.option('--input_folder', '-i', default='tmp/results', required=False, type=str,
-              help='Input folder containing comparison files.')
-@click.option('--output', '-o', default='tmp/results', required=False,
-              help='Output folder')
-def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
-    # Create output directory if it doesn't exist
-    os.makedirs(output, exist_ok=True)
+def main(input_dir, output_dir, sel_coef, mut_rate, pop_size):
+    """
+    Plot grid of velocity vs. standard deviation from escsim output files.
+    Generates three figures:
+    1. Selection coefficient series (s_velocity.jpg)
+    2. Mutation rate series (u_velocity.jpg)
+    3. Combined side-by-side plot with panels 'a' and 'b' (combined_velocity.jpg)
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    base_dir = Path(input_dir)
 
     sel_coef = list(sel_coef)
     mut_rate = list(mut_rate)
 
-    # Enforce mutual exclusivity
-    if len(sel_coef) > 1 and len(mut_rate) > 1:
-        raise click.UsageError(
-            "You cannot provide multiple --sel_coef AND multiple --mut_rate at the same time."
-        )
+    if len(sel_coef) == 0 or len(mut_rate) == 0:
+        raise click.UsageError("You must provide at least one --sel_coef AND one --mut_rate.")
 
-    if len(sel_coef) == 0 and len(mut_rate) == 0:
-        raise click.UsageError(
-            "You must provide at least one of --sel_coef or --mut_rate."
-        )
-    
+    # Styling
     sns.set_context("paper")
     sns.set_style("ticks")
 
     plt.rcParams.update({
         "text.usetex": True,
-        "mathtext.fontset": "cm",        
+        "mathtext.fontset": "cm",
         "font.family": "serif",
         "font.serif": ["Computer Modern Roman"],
     })
 
-    # Base figure setup (matching LaTeX column width)
+    LABEL_FONTSIZE = 11
+    LEGEND_FONTSIZE = 11
+    TITLE_FONTSIZE = 11
+    TICK_FONTSIZE = 9
+
+    # Figure dimensions matching LaTeX column width
     fig_width = 426.79134 / 72.27  
     fig_height = fig_width / 1.618
 
     # Individual figures
-    fig1, ax1 = plt.subplots(figsize=(fig_width, fig_height))
-    fig2, ax2 = plt.subplots(figsize=(fig_width, fig_height))
+    fig_s, ax_s = plt.subplots(figsize=(fig_width, fig_height))
+    fig_u, ax_u = plt.subplots(figsize=(fig_width, fig_height))
 
-    # Combined Figure Setup (2 side-by-side subplots fitting in the same figure dimensions)
-    fig3, (ax3_left, ax3_right) = plt.subplots(1, 2, figsize=(fig_width, fig_height))
+    # Combined figure
+    fig_comb, (ax_comb_a, ax_comb_b) = plt.subplots(1, 2, figsize=(fig_width, fig_height))
 
-    markers = ['o', '^', 's']
-    is_sel_coef_mode = len(sel_coef) > len(mut_rate) or (len(sel_coef) == len(mut_rate) == 1)
+    available_markers = ['o', '^', 's', 'D', 'v', 'p', '*']
 
-    # Fontsize configuration
-    LABEL_FONTSIZE = 11
-    LEGEND_FONTSIZE = 10
-    TITLE_FONTSIZE = 11
-    TICK_FONTSIZE = 9
+    def process_data_series(loop_list, is_s_mode, ax_indiv, ax_comb):
+        """Helper to load data, sort parameter lists, and plot to both individual and combined axes."""
+        
+        # Sort ascending for s, descending for U
+        sorted_list = sorted(loop_list) if is_s_mode else sorted(loop_list, reverse=True)
+        colors = sns.color_palette("colorblind", len(sorted_list))
+        
+        total_processed = 0
 
-    if is_sel_coef_mode:
-        # Sort ascending for Selection Coefficients
-        sorted_sel_coef = sorted(sel_coef)
-        colors = sns.color_palette("colorblind", len(sorted_sel_coef))
-
-        for i, s in enumerate(sorted_sel_coef):
-            input_file = os.path.join(input_folder, f"s_N{pop_size}_U{mut_rate[0]}_s{s}.txt")
-            df = pd.read_csv(input_file, sep="\t")
-            s_s_eff = df['s'] / s
-
-            label = f'${s}$'
-            marker = markers[i % len(markers)]
+        for i, val in enumerate(sorted_list):
+            marker = available_markers[i % len(available_markers)]
             color = colors[i]
 
-            # Individual figures
-            sns.scatterplot(x='sd/s', y='s', data=df, ax=ax1, color=color, marker=marker, s=25, label=label)
-            sns.scatterplot(x=df['sd/s'], y=s_s_eff, ax=ax2, color=color, marker=marker, s=25, label=label)
+            if is_s_mode:
+                pattern = f"escsim_N{pop_size}_U{mut_rate[0]}_s{val}_sd*.out"
+                label_text = f'${val}$'
+                fixed_s = val
+            else:
+                pattern = f"escsim_N{pop_size}_U{val}_s{sel_coef[0]}_sd*.out"
+                label_text = f'${val}$'
+                fixed_s = sel_coef[0]
 
-            # Combined figure panels
-            sns.scatterplot(x='sd/s', y='s', data=df, ax=ax3_left, color=color, marker=marker, s=20, label=label)
-            sns.scatterplot(x=df['sd/s'], y=s_s_eff, ax=ax3_right, color=color, marker=marker, s=20, label=label)
+            matching_files = list(base_dir.glob(pattern))
+            x_data, y_data = [], []
 
-        # Formatting Individual Fig 1
-        ax1.set_ylim(-0.05 * min(sorted_sel_coef), max(sorted_sel_coef) * 1.15)
-        ax1.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=6)
-        ax1.set_ylabel("Effective Selection Coefficient", fontsize=LABEL_FONTSIZE, labelpad=6)
-        ax1.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-        ax1.legend(title=r"$s_{normal}$", title_fontsize=TITLE_FONTSIZE, loc="upper right", ncol=1, frameon=False, fontsize=LEGEND_FONTSIZE)
-        fig1.tight_layout(pad=0.1)
-        fig1.savefig(os.path.join(output, "effective_selection_coefficient.jpg"), dpi=600, bbox_inches='tight')
+            for file in matching_files:
+                match = re.search(r"sd(\d+(?:\.\d+)?)\.out", file.name)
+                if match:
+                    sd = float(match.group(1))
+                    sd_s = sd / fixed_s if fixed_s != 0 else 0
 
-        # Formatting Individual Fig 2
-        ax2.set_ylim(0, 1.05)
-        ax2.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=6)
-        ax2.set_ylabel(r"Effective Selection Coefficient / $s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=6)
-        ax2.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-        ax2.legend(title=r"$s_{normal}$", title_fontsize=TITLE_FONTSIZE, fontsize=LEGEND_FONTSIZE, loc="upper right", frameon=False)
-        fig2.tight_layout(pad=0.1)
-        fig2.savefig(os.path.join(output, "relative_effective_selection_coefficient.jpg"), dpi=600, bbox_inches='tight')
+                    try:
+                        df = pd.read_csv(file, sep="\t")
+                        mean_velocity = get_mean_velocity(df)
+                        x_data.append(sd_s)
+                        y_data.append(mean_velocity)
+                        total_processed += 1
+                    except Exception as e:
+                        click.echo(f"Warning: Failed to process file {file.name}. Error: {e}", err=True)
 
-        # Formatting Combined Fig 3 (Selection Coefficient Mode)
-        ax3_left.set_ylim(-0.05 * min(sorted_sel_coef), max(sorted_sel_coef) * 1.15)
-        ax3_left.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=4)
-        ax3_left.set_ylabel("Effective Selection Coefficient", fontsize=LABEL_FONTSIZE, labelpad=4)
-        ax3_left.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-        ax3_left.legend(title=r"$s_{normal}$", title_fontsize=TITLE_FONTSIZE, loc="upper right", ncol=1, frameon=False, fontsize=LEGEND_FONTSIZE)
+            if x_data:
+                # Plot to individual figure
+                sns.scatterplot(
+                    x=x_data, y=y_data, ax=ax_indiv,
+                    color=color, marker=marker, s=25, label=label_text
+                )
+                # Plot to combined figure
+                sns.scatterplot(
+                    x=x_data, y=y_data, ax=ax_comb,
+                    color=color, marker=marker, s=20, label=label_text
+                )
 
-        ax3_right.set_ylim(0, 1.05)
-        ax3_right.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=4)
-        ax3_right.set_ylabel(r"Effective Selection Coefficient / $s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=4)
-        ax3_right.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-        ax3_right.legend(title=r"$s_{normal}$", title_fontsize=TITLE_FONTSIZE, loc="upper right", frameon=False, fontsize=LEGEND_FONTSIZE)
+        # Apply formatting to individual axis
+        ax_indiv.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=6)
+        ax_indiv.set_ylabel(r"Relative Click Rate", fontsize=LABEL_FONTSIZE, labelpad=6)
+        ax_indiv.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
+        title_text = r"$s_{normal}$" if is_s_mode else r"$U_{normal}$"
+        ax_indiv.legend(title=title_text, title_fontsize=TITLE_FONTSIZE, fontsize=LEGEND_FONTSIZE, loc="best", frameon=False)
 
-    else:
-        # Sort descending for Mutation Rates
-        sorted_mut_rate = sorted(mut_rate, reverse=True)
-        colors = sns.color_palette("colorblind", len(sorted_mut_rate))
-        
-        lowest_u = sorted_mut_rate[-1]
-        df_lowest_u = None
+        # Apply formatting to combined axis panel
+        ax_comb.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=4)
+        ax_comb.set_ylabel(r"Relative Click Rate", fontsize=LABEL_FONTSIZE, labelpad=4)
+        ax_comb.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
+        ax_comb.legend(title=title_text, title_fontsize=TITLE_FONTSIZE, fontsize=LEGEND_FONTSIZE, loc="best", frameon=False)
 
-        for i, u in enumerate(sorted_mut_rate):
-            input_file = os.path.join(input_folder, f"U_N{pop_size}_U{u}_s{sel_coef[0]}.txt")
-            df = pd.read_csv(input_file, sep="\t")
-            u_eff_u = df['U'] / u
+        return total_processed
 
-            if u == lowest_u:
-                df_lowest_u = df
+    # 1. Process Selection Coefficient series
+    count_s = process_data_series(sel_coef, is_s_mode=True, ax_indiv=ax_s, ax_comb=ax_comb_a)
 
-            label = f'${u}$'
-            marker = markers[i % len(markers)]
-            color = colors[i]
+    # 2. Process Mutation Rate series
+    count_u = process_data_series(mut_rate, is_s_mode=False, ax_indiv=ax_u, ax_comb=ax_comb_b)
 
-            # Individual figures
-            sns.scatterplot(x='sd/s', y='U', data=df, ax=ax1, label=label, color=color, marker=marker, s=25)
-            sns.scatterplot(x=df['sd/s'], y=u_eff_u, ax=ax2, color=color, marker=marker, s=25, label=label)
+    if count_s == 0 and count_u == 0:
+        click.echo("Error: No matching escsim data files found. Plots were not saved.", err=True)
+        return
 
-            # Combined figure panels
-            sns.scatterplot(x='sd/s', y='U', data=df, ax=ax3_left, color=color, marker=marker, s=20, label=label)
-            sns.scatterplot(x=df['sd/s'], y=u_eff_u, ax=ax3_right, color=color, marker=marker, s=20, label=label)
+    # Add panel labels 'a' and 'b' to the combined figure
+    ax_comb_a.text(-0.15, 1.05, r'\textbf{a}', transform=ax_comb_a.transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
+    ax_comb_b.text(-0.15, 1.05, r'\textbf{b}', transform=ax_comb_b.transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
 
-        # Scientific Notation Formatter for Insets
-        formatter = ScalarFormatter(useMathText=True)
-        formatter.set_scientific(True)
-        formatter.set_powerlimits((0, 0))
+    # Save Individual Fig 1: Selection Coefficient
+    fig_s.tight_layout(pad=0.1)
+    fig_s.savefig(os.path.join(output_dir, "s_velocity.jpg"), dpi=600, bbox_inches='tight')
 
-        # --- Inset for Individual Fig 1 (Moved y to 0.62) ---
-        ax1_inset = ax1.inset_axes([0.55, 0.62, 0.40, 0.35])
-        sns.scatterplot(x='sd/s', y='U', data=df_lowest_u, ax=ax1_inset, color=colors[-1], marker=markers[(len(sorted_mut_rate)-1) % len(markers)], s=15)
-        ax1_inset.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE - 2)
-        ax1_inset.yaxis.set_major_formatter(formatter)
-        ax1_inset.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-        ax1_inset.yaxis.get_offset_text().set_fontsize(TICK_FONTSIZE - 3)
-        ax1_inset.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE - 2, labelpad=1)
-        ax1_inset.set_ylabel(r"Effective $U$", fontsize=LABEL_FONTSIZE - 2, labelpad=1)
+    # Save Individual Fig 2: Mutation Rate
+    fig_u.tight_layout(pad=0.1)
+    fig_u.savefig(os.path.join(output_dir, "u_velocity.jpg"), dpi=600, bbox_inches='tight')
 
-        # --- Inset for Combined Fig 3 (Shifted upwards to y = 0.62) ---
-        ax3_inset = ax3_left.inset_axes([0.53, 0.62, 0.44, 0.35])
-        sns.scatterplot(x='sd/s', y='U', data=df_lowest_u, ax=ax3_inset, color=colors[-1], marker=markers[(len(sorted_mut_rate)-1) % len(markers)], s=12)
-        ax3_inset.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE - 3)
-        ax3_inset.yaxis.set_major_formatter(formatter)
-        ax3_inset.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-        ax3_inset.yaxis.get_offset_text().set_fontsize(TICK_FONTSIZE - 4)
-        ax3_inset.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE - 3, labelpad=1)
-        ax3_inset.set_ylabel(r"Effective Mutation Rate", fontsize=LABEL_FONTSIZE - 3, labelpad=1)
+    # Save Combined Fig 3
+    fig_comb.tight_layout(pad=0.5)
+    fig_comb.savefig(os.path.join(output_dir, "combined_velocity.jpg"), dpi=600, bbox_inches='tight')
 
-        # Formatting Individual Fig 1
-        ax1.set_ylim(-0.05 * max(sorted_mut_rate), max(sorted_mut_rate) * 1.25)
-        ax1.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=6)
-        ax1.set_ylabel("Effective Mutation Rate", fontsize=LABEL_FONTSIZE, labelpad=6)
-        ax1.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-        ax1.legend(title=r"$U_{normal}$", title_fontsize=TITLE_FONTSIZE, fontsize=LEGEND_FONTSIZE, loc="lower right", bbox_to_anchor=(0.98, 0.18), ncol=1, frameon=False)
-        fig1.tight_layout(pad=0.1)
-        fig1.savefig(os.path.join(output, "effective_mutation_rate.jpg"), dpi=600, bbox_inches='tight')
+    click.echo(f"Successfully generated 's_velocity.jpg', 'u_velocity.jpg', and 'combined_velocity.jpg' in {output_dir}")
 
-        # Formatting Individual Fig 2
-        ax2.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=6)
-        ax2.set_ylabel(r"Effective Mutation Rate / $U_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=6)
-        ax2.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-        ax2.legend(title=r"$U_{normal}$", title_fontsize=TITLE_FONTSIZE, loc="upper right", ncol=1, frameon=False, fontsize=LEGEND_FONTSIZE)
-        fig2.tight_layout(pad=0.1)
-        fig2.savefig(os.path.join(output, "relative_effective_mutation_rate.jpg"), dpi=600, bbox_inches='tight')
-
-        # Formatting Combined Fig 3 (Effective Mutation Rate Mode)
-        ax3_left.set_ylim(-0.05 * max(sorted_mut_rate), max(sorted_mut_rate) * 1.30)
-        ax3_left.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=4)
-        ax3_left.set_ylabel("Effective Mutation Rate", fontsize=LABEL_FONTSIZE, labelpad=4)
-        ax3_left.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-        
-        # Legend positioned cleanly on the bottom right
-        ax3_left.legend(
-            title=r"$U_{normal}$", 
-            title_fontsize=TITLE_FONTSIZE, 
-            loc="lower right", 
-            bbox_to_anchor=(0.98, 0.18), 
-            ncol=1, 
-            frameon=False, 
-            fontsize=LEGEND_FONTSIZE
-        )
-
-        ax3_right.set_xlabel(r"$\sigma/s_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=4)
-        ax3_right.set_ylabel(r"Effective Mutation Rate / $U_{normal}$", fontsize=LABEL_FONTSIZE, labelpad=4)
-        ax3_right.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-        ax3_right.legend(title=r"$U_{normal}$", title_fontsize=TITLE_FONTSIZE, loc="upper right", frameon=False, fontsize=LEGEND_FONTSIZE)
-
-    # Shifted 'a' and 'b' panel labels further left to prevent y-axis tick collision
-    ax3_left.text(-0.22, 1.05, 'a', transform=ax3_left.transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
-    ax3_right.text(-0.22, 1.05, 'b', transform=ax3_right.transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
-
-    # Save combined figure cleanly without excess whitespace
-    fig3.tight_layout(pad=0.2)
-    if is_sel_coef_mode:
-        fig3.savefig(os.path.join(output, "combined_effective_selection_coefficient.jpg"), dpi=600, bbox_inches='tight')
-    else:
-        fig3.savefig(os.path.join(output, "combined_effective_mutation_rate.jpg"), dpi=600, bbox_inches='tight')
-
-
-if __name__ == "__main__":
-    visualize_sd_vs_s()
+if __name__ == '__main__':
+    main()

@@ -205,8 +205,8 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
         ax3_right.legend(title=r"$U_{normal}$", title_fontsize=TITLE_FONTSIZE, loc="upper right", bbox_to_anchor=(0.98, 0.98), frameon=False, fontsize=LEGEND_FONTSIZE)
 
     # Panel labels 'a' and 'b' accurately aligned above their respective subplots
-    ax3_left.text(-0.20, 1.05, 'a', transform=ax3_left.transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
-    ax3_right.text(-0.15, 1.05, 'b', transform=ax3_right.transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
+    ax3_left.text(-0.20, 1.05, r'\textbf{a}', transform=ax3_left.transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
+    ax3_right.text(-0.15, 1.05, r'\textbf{b}', transform=ax3_right.transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
 
     # Save combined figure cleanly without excess whitespace
     fig3.tight_layout(pad=0.2)

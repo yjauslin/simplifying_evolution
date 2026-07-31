@@ -371,7 +371,7 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
         for row in range(num_rows):
             # When tracking changing mutation rates, selection coefficient is held constant at index 0
             s = sel_coef[0]
-            u = mut_rate[row]
+            u = mut_rate_sorted[row]
             sd = [s * sig for sig in sigma]
         
             for col in range(num_cols):

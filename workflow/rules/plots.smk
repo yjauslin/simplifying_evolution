@@ -308,7 +308,7 @@ rule visualize_velocity:
     threads: 1
     resources:
         mem_mb=5000,
-        runtime=10,
+        runtime=20,
     shell:
         """
         python workflow/scripts/visualize_velocity_vs_sd.py \

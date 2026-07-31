@@ -4,7 +4,9 @@ import pandas as pd
 import os
 import re
 import glob
+import copy
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import seaborn as sns
 
 from calc_coalescent_density import get_mean_profile
@@ -35,32 +37,33 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
     Plot a grid of mutational burden distributions from escsim output files with 2 fixed rows.
     Row 0: Fixed mutation rate, varying selection coefficients across columns.
     Row 1: Fixed selection coefficient, varying mutation rates across columns.
-    
-    Accepts sigma as a ratio (e.g., 0.25, 0.5) and calculates the absolute sd on-the-fly,
-    matching files robustly despite floating point errors.
     """
+    sel_coef_copy = copy.deepcopy(sel_coef)
+    mut_rate_copy = copy.deepcopy(mut_rate)
+
+    # Sort selection coefficients ascending and mutation rates descending
+    sel_coef_sorted = sorted(sel_coef)
+    mut_rate_sorted = sorted(mut_rate, reverse=True)
+
     num_rows = 2
-    # The number of columns is determined by whichever list has more entries
-    num_cols = max(len(sel_coef), len(mut_rate))
+    num_cols = max(len(sel_coef_sorted), len(mut_rate_sorted))
     
-    # Grab a colorblind-friendly palette
     colors = [
-        "#3A86FF",  # 1. Vibrant Blue
-        "#FFBE0B",  # 2. Warm Ochre Yellow
-        "#FF006E",  # 3. Vivid Magenta/Pink
-        "#8338EC",  # 4. Deep Purple
-        "#FB5607",  # 5. Bright Orange
-        "#06D6A0",  # 6. Fresh Mint Green
-        "#118AB2",  # 7. Deep Teal Blue
-        "#70E000",  # 8. Electric Lime Green
-        "#D80032",  # 9. Crimson Red
-        "#F72585",  # 10. Neon Rose
+        "#332288",  # Indigo
+        "#88CCEE",  # Cyan
+        "#44AA99",  # Teal
+        "#117733",  # Green
+        "#999933",  # Olive
+        "#DDCC77",  # Sand / Yellow
+        "#CC6677",  # Rose / Coral
+        "#882255",  # Wine
+        "#AA4499",  # Purple
+        "#661100",  # Dark Brown
     ]
 
     sns.set_context("paper", font_scale=1.05)
     sns.set_style("ticks")
 
-    # Cluster-safe typography using Matplotlib's internal TeX parser engine
     plt.rcParams.update({
         "text.usetex": True, 
         "mathtext.fontset": "cm",        
@@ -68,43 +71,40 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
         "font.serif": ["Computer Modern Roman"],
     })
 
-    # Figures correspond to column text boundaries in standard LaTeX templates
     fig_width = 426.79134 / 72.27  
     fig_height = fig_width * (num_rows / num_cols) * 1.25
 
-    # Enforce clear grid alignment by sharing contextual row and column limits
-    fig, axes = plt.subplots(figsize=(fig_width, fig_height), sharey="row", nrows=num_rows, ncols=num_cols)
+    # Independent y-axes per subplot
+    fig, axes = plt.subplots(figsize=(fig_width, fig_height), nrows=num_rows, ncols=num_cols)
     axes = np.atleast_2d(axes)
 
     for col in range(num_cols):
-        # --- Row 0: Fixed mutation rate u[0], varying selection coefficient ---
-        s_top = sel_coef[min(col, len(sel_coef) - 1)]
-        u_top = mut_rate[0]
+        # --- Row 0: Fixed mutation rate, varying selection coefficient (ascending) ---
+        s_top = sel_coef_sorted[min(col, len(sel_coef_sorted) - 1)]
+        u_top = mut_rate_copy[0]
         ax_top = axes[0, col]
         
-        ax_top.set_title(f"$s_{{normal}}$ = {s_top}; $U_d$ = {u_top}", fontsize=9, pad=6)
+        ax_top.set_title(f"$s_{{normal}}$ = {s_top}", fontsize=11, pad=6)
         
-        # --- Row 1: Fixed selection coefficient s[0], varying mutation rate ---
-        s_bottom = sel_coef[0]
-        u_bottom = mut_rate[min(col, len(mut_rate) - 1)]
+        # --- Row 1: Fixed selection coefficient, varying mutation rate (descending) ---
+        s_bottom = sel_coef_copy[0]
+        u_bottom = mut_rate_sorted[min(col, len(mut_rate_sorted) - 1)]
         ax_bottom = axes[1, col]
         
-        ax_bottom.set_title(f"$s_{{normal}}$ = {s_bottom}; $U_d$ = {u_bottom}", fontsize=9, pad=6)
+        ax_bottom.set_title(f"$U_{{normal}}$ = {u_bottom}", fontsize=11, pad=6)
 
-        # Draw execution threads across both active horizontal frames sequentially
         for row, (current_s, current_u, ax) in enumerate([(s_top, u_top, ax_top), (s_bottom, u_bottom, ax_bottom)]):
             
-            # Retrieve all file candidates for this (N, U, s) combination first
+            # Limit y-tick density to prevent collisions across subplots
+            ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=4, prune=None))
+
             glob_pattern = os.path.join(input_dir, f"escsim_N{pop_size}_U{current_u}_s{current_s}_sd*.out")
             matching_files = glob.glob(glob_pattern)
             
-            # Loop through the user-specified standard deviation ratios (e.g., 0.25)
             for idx, ratio in enumerate(sigma):
-                # Calculate what the standard deviation should mathematically be
                 target_sd = ratio * current_s
-                
-                # Iterate matches and perform floating point-safe check
                 target_filepath = None
+                
                 for filepath in matching_files:
                     match = re.search(r"_sd([\deE.+-]+)\.out", os.path.basename(filepath))
                     if match:
@@ -137,33 +137,43 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
 
             ax.grid(False)
 
-    # Row labels 'a' and 'b' positioned clearly above the leftmost subplots
-    axes[0, 0].text(-0.28, 1.18, 'a', transform=axes[0, 0].transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
-    axes[1, 0].text(-0.28, 1.18, 'b', transform=axes[1, 0].transAxes, fontsize=12, fontweight='bold', va='top', ha='right')
+    # Place y-axis label "Frequency" on the leftmost subplots so it sits to the RIGHT of plot labels ('a', 'b')
+    axes[0, 0].set_ylabel("Frequency", fontsize=11, labelpad=10)
+    axes[1, 0].set_ylabel("Frequency", fontsize=11, labelpad=10)
 
-    # Y-label and X-label positioned globally
-    fig.supylabel("Frequency", fontsize=11, x=0.04)
+    # Position plot labels ('a', 'b') to the LEFT of the Frequency y-axis label
+    axes[0, 0].text(-0.50, 1.18, r'\textbf{a}', transform=axes[0, 0].transAxes, fontsize=11, fontweight='bold', va='top', ha='right')
+    axes[1, 0].text(-0.50, 1.18, r'\textbf{b}', transform=axes[1, 0].transAxes, fontsize=11, fontweight='bold', va='top', ha='right')
+
+    # Right-side labels flipped (reading top-to-bottom)
+    ax_top_right = axes[0, -1].twinx()
+    ax_top_right.set_ylabel(f"$U_{{normal}}$ = {mut_rate_copy[0]}", fontsize=11, labelpad=12, rotation=-90, va="bottom")
+    ax_top_right.set_yticks([])
+
+    ax_bottom_right = axes[1, -1].twinx()
+    ax_bottom_right.set_ylabel(f"$s_{{normal}}$ = {sel_coef_copy[0]}", fontsize=11, labelpad=12, rotation=-90, va="bottom")
+    ax_bottom_right.set_yticks([])
+
+    # Shared X-label
     fig.supxlabel("Mutational burden class $h_k$", fontsize=11, y=0.01)
 
-    # Collect legend handles and labels from the first subplot
+    # Collect legend handles and labels
     handles, labels = axes[0, 0].get_legend_handles_labels()
 
-    # Create a single global top-bar legend
     if handles:
         fig.legend(
             handles, labels, 
             loc='upper center', 
-            bbox_to_anchor=(0.52, 1.02), 
+            bbox_to_anchor=(0.50, 1.02), 
             ncol=len(sigma), 
             frameon=False, 
-            fontsize=10
+            fontsize=11
         )
 
     os.makedirs(output_dir, exist_ok=True)
     
-    # Adjust layout bounds and add explicit horizontal spacing (wspace) between plot columns
-    fig.tight_layout(pad=0.2, rect=[0.10, 0.04, 0.98, 0.93])
-    fig.subplots_adjust(wspace=0.35, hspace=0.45)
+    fig.tight_layout(pad=0.2, rect=[0.08, 0.04, 0.94, 0.93])
+    fig.subplots_adjust(wspace=0.45, hspace=0.45)
     
     output_path = os.path.join(output_dir, "mut_burden_dist.jpg")
     fig.savefig(output_path, dpi=600, bbox_inches='tight')
