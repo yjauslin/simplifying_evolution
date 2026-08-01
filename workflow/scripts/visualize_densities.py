@@ -470,7 +470,7 @@ def visualizing_densities(pop_size, mut_rate, sel_coef, sigma, input_folder, out
                 ax.set_xlabel("")
                 ax.set_ylabel("")
 
-            # Add Row Titles on the right-hand side of the grid (Labeling U_d instead of s)
+            # Add Row Titles on the right-hand side of the grid
             right_ax = axes[row, -1]
             right_ax.text(1.05, 0.5, f"$U_{{normal}}$ = {u}", transform=right_ax.transAxes, 
                           rotation=-90, va='center', ha='left', fontsize=11)

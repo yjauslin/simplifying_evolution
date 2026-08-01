@@ -53,7 +53,6 @@ def get_num_sim(wildcards):
         if sigma / s > 0.25:
             return config["constants"]["ESTIMATE_N_SIM"]
 
-    # original calculation
     phi = N * s * math.exp(-U / s)
 
     n_sim = config["constants"]["ESTIMATE_N_SIM"] if phi < 1 or U <= 0.001 else 100

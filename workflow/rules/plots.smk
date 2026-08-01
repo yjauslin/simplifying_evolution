@@ -255,9 +255,7 @@ rule mut_burden_dist:
         
         # Pull distinct selection coefficients and mutation rates to layout the grid axes
         s_eff_s = lambda w: ",".join(map(str, config["experiments"]["s_eff"]["s_normal"])),
-        s_eff_u = lambda w: ",".join(map(str, config["experiments"]["s_eff"]["mut_rate"])),
         
-        ueff_s  = lambda w: ",".join(map(str, config["experiments"]["U_eff"]["sel_coef"])),
         ueff_u  = lambda w: ",".join(map(str, config["experiments"]["U_eff"]["mut_rate_normal"])),
         
         # Collect all specific formatted sigmas required for the line files parsing

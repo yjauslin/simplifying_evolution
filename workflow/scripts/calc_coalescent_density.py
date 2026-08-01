@@ -353,49 +353,18 @@ def calc_coalescent_density(pop_size, time_points, n_samples=2):
     popsizes = popsizes[sorted_indices]
 
     lambda_t = n_combinations / popsizes
-
+    
+    # Calculate the cumulative hazard function using the trapezoidal rule
     cumulative_hazard = integrate.cumulative_trapezoid(
         lambda_t,
         times,
         initial=0,
     )
-    
-    # Create interpolation function for population size
-    # Use 'previous' to keep popsize constant backward in time until next value
-    # pop_size_t = interpolate.interp1d(
-    #    x=times,
-    #    y=popsizes,
-    #    kind='previous',
-    #    bounds_error=False,
-    #    fill_value=(popsizes[0], popsizes[-1]),
-    #    assume_sorted=True
-    # )
-    
-    # Calculate integral for each time point
-    # with warnings.catch_warnings():
-    #    warnings.filterwarnings('ignore', category=integrate.IntegrationWarning)
-    #    integral_values = np.array([
-    #        integrate.quad(lambda s: n_combinations / pop_size_t(s), 0, t)[0]
-    #        for t in times
-    #    ])
 
-    # Calculate coalescent density: psi(t) = (n choose 2) * (1/N(t)) * exp(-integral)
-    # densities = np.where(
-    #    integral_values == 0,
-    #    n_combinations / popsizes,  # At t=0, just return the rate
-    #    (n_combinations / pop_size_t(times)) * np.exp(-integral_values)
-    # )
-
+    # Calculate the coalescent density using the formula: density = lambda(t) * exp(-cumulative_hazard)
     densities = lambda_t * np.exp(-cumulative_hazard)
     
     return times, densities
-    
-
-    
-
-    
-
-    
-    return times, densities
+  
 if __name__ == "__main__":
     write_file()

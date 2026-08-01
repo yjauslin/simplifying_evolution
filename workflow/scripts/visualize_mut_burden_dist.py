@@ -137,11 +137,11 @@ def main(pop_size, mut_rate, sel_coef, sigma, input_dir, output_dir):
 
             ax.grid(False)
 
-    # Place y-axis label "Frequency" on the leftmost subplots so it sits to the RIGHT of plot labels ('a', 'b')
+    # Place y-axis label "Frequency" on the leftmost subplots so it sits to the right of plot labels ('a', 'b')
     axes[0, 0].set_ylabel("Frequency", fontsize=11, labelpad=10)
     axes[1, 0].set_ylabel("Frequency", fontsize=11, labelpad=10)
 
-    # Position plot labels ('a', 'b') to the LEFT of the Frequency y-axis label
+    # Position plot labels ('a', 'b') to the left of the Frequency y-axis label
     axes[0, 0].text(-0.50, 1.18, r'\textbf{a}', transform=axes[0, 0].transAxes, fontsize=11, fontweight='bold', va='top', ha='right')
     axes[1, 0].text(-0.50, 1.18, r'\textbf{b}', transform=axes[1, 0].transAxes, fontsize=11, fontweight='bold', va='top', ha='right')
 
