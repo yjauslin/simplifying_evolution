@@ -46,27 +46,6 @@ rule visualize_wave_normal:
             --limit 20 > {log} 2>&1
         """
 
-rule visualize_densities:
-    input:
-        # OPTIMIZATION: Instead of forcing the DAG engine to parse millions of strings
-        # via massive expand configurations, we anchor this rule to the cluster aggregation points.
-        # This prevents the master thread from experiencing memory exhaustion.
-        "results/markers/calc_coalescent_density_fixed.done",
-        "results/markers/calc_coalescent_density_normal.done"
-    output:
-        "results/escsim_figures/coalescent_density.jpg",
-        "results/escsim_figures/effective_population_size.jpg"
-    log:
-        "logs/visualize_densities.log"
-    resources:
-        mem_mb=10*1000,        
-        runtime=30,
-    threads: 10
-    shell:
-        """
-        python workflow/scripts/visualize_densities.py 2>&1 | tee {log}
-        """
-
 rule effective_selection_coefficient:
     input:
         files=expand(
