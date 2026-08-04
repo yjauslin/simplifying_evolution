@@ -14,10 +14,33 @@ The effect of many weakly deleterious mutations can be summarized by a few stron
   - [escsim-0.1.1/](resources/escsim-0.1.1/): Pip-package implementing the forward simulation approach to simulate mutational burden profile.
 
 - results/
+  - [coalescent_densities](results/coalescent_densities/): Folder containing coalescent density estimates and empirical coalescent density data to produce Figure 12 and 13.
+    - [fixed](results/coalescent_densities/fixed/): Folder containing coalescent density estimates and empirical coalescent density data with the fixed selection coefficient.
+    - [normal](results/coalescent_densities/normal/): Folder containing coalescent density estimates and empirical coalescent density data with the Gaussian distribution of mutational effects.
+  - [escsim](results/escsim/): Folder containing relative click rate and mutational burden profile data obtained through SLiM simulations used for figure 6 and 7.
+    - [fixed](results/escsim/fixed/): Folder containing relative click rate and mutational burden profile data obtained through SLiM simulations with a fixed selection coefficient. This data is a precursor to obtain the coalescent densities for Figure 12 and 13.
+    - [normal](results/escsim/normal/): Folder containing relative click rate and mutational burden profile data obtained through SLiM simulations with the Gaussian distribution of mutational effects. This data was used to produce Figure 6 and 7.
   - [escsim_figures/](results/escsim_figures/): Folder containing visualizations of the simulation results.
-      - [comparison_plots](results/escsim_figures/comparison_plots/): Folder containing visualizations of the Kolmogorov-Smirnov and RMSE along the fixed grid of s_fixed (s_eff) and U_fixed (U_eff)
-      - [fixed](results/escsim_figures/fixed/): Folder containing summary pdf for the fixed simulations and wave visualizations 
-      - [normal](results/escsim_figures/normal/): Folder containing summary pdf for the normally distributed simulations and wave visualizations 
+      - [fixed](results/escsim_figures/fixed/): Folder containing summary pdf for the fixed simulations. 
+      - [normal](results/escsim_figures/normal/): Folder containing summary pdf for the normally distributed simulations.
+      - [coalescent_density_s_eff.jpg](results/escsim_figures/coalescent_density_s_eff.jpg): Figure 12, Coalescent densities over time for the fixed effective selection coefficient estimates, normally distributed selection coefficient estimates and Wright-Fisher forward simulations. 
+      - [coalescent_density_U_eff.jpg](results/escsim_figures/coalescent_density_u_eff.jpg): Figure 13, Coalescent densities over time for the effective mutation rate estimates with a fixed selection coefficient, normally distributed selection coefficient estimates and Wright-Fisher forward simulations. 
+      - [combined_effective_mutation_rate.jpg](results/escsim_figures/combined_effective_mutation_rate.jpg): Figure 10, Effective mutation rate and relative effective mutation rate under increasing standard variation.
+      - [combined_effective_selection_coefficient.jpg](results/escsim_figures/combined_effective_selection_coefficient.jpg): Figure 8, Effective selection coefficient and relative effective selection coefficient under increasing standard variation.
+      - [combined_velocity.jpg](results/escsim_figures/combined_velocity.jpg): Figure 6, Relative click rate under increasing standard variation for different selection coefficients and different mutation rates.
+      - [effective_mutation_rate.jpg](results/escsim_figures/effective_mutation_rate.jpg): Subplot 10a, Effective mutation rate under increasing standard deviation.
+      - [effective_selection_coefficient](results/escsim_figures/effective_selection_coefficient.jpg): Subplot 8a, Effective selection coefficient under increasing standard deviation.
+      - [mut_burden_dist](results/escsim_figures/mut_burden_dist.jpg): Figure 7, Relative mutational burden classes for different selection coefficients and mutation rates under increasing standard variation. 
+      - [relative_effective_mutation_rate.jpg](results/escsim_figures/relative_effective_mutation_rate.jpg): Subplot 10b, Relative effective mutation rate under increasing standard deviation.
+      - [relative_effective_selection_coefficient.jpg](results/escsim_figures/relative_effective_selection_coefficient.jpg): Subplot 8b, Relative effective selection coefficient under increasing standard deviation.
+      - [s_eff_Kolmogorov.jpg](results/escsim_figures/s_eff_Kolmogorov.jpg): Figure 9, Kolmogorov-Smirnov D-Statistic under increasing standard variation for three different selection coefficients.
+      - [s_velocity.jpg](results/escsim_figures/s_velocity.jpg): Subplot 6a, Relative click rate under increasing standard deviation for different selection coefficients.
+      - [U_eff_Kolmogorov.jpg](results/escsim_figures/U_eff_Kolmogorov.jpg): Figure 11, Kolmogorov-Smirnov D-Statistic under increasing standard variation for three different mutation rates.
+      - [u_velocity.jpg](results/escsim_figures/u_velocity.jpg): Subplot 6b, Relative click rate under increasing standard deviation for different mutation rates.
+  - [min_values](results/min_values/): Folder containing data on the selection coefficient or mutation rate minimizing the Kolmogorov-Smirnov D-statistic per value of standard deviation.
+    - [s_eff](results/min_values/s_eff/): Folder containing data on the selection coefficient minimizing the Kolmogorov-Smirnov D-statistic per value of standard deviation.
+    - [U_eff](results/min_values/U_eff/): Folder containing data on the mutation rate minimizing the Kolmogorov-Smirnov D-statistic per value of standard deviation.
+
 
 - workflow/
   - [rules/](workflow/rules/)
