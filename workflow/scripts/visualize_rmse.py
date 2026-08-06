@@ -46,7 +46,7 @@ def visualize_rmse(input, output, axis_type):
     sns.scatterplot(x=x_col, y='RMSE', data=df, ax=ax, label='RMSE')
     sns.scatterplot(x=x_col, y='Kolmogorov', data=df, ax=ax, label='Kolmogorov-Smirnov')
 
-    plt.ylabel('RMSE / D-Statistic', fontsize=11)
+    plt.ylabel('RMSE / KS distance', fontsize=11)
     plt.xticks(rotation=45, fontsize=9)
     plt.legend(frameon=False, fontsize = 11)
     plt.tight_layout(pad=0.2)
