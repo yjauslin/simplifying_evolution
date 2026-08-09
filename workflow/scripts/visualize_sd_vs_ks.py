@@ -69,7 +69,7 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
             sns.scatterplot(x='sd/s', y='min_Kolmogorov', data=df, ax=ax, color=colors[i], marker=markers[i], s=25, label=f'${s}$')
 
         ax.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=11, labelpad=6)
-        ax.set_ylabel(r"D-Statistic", fontsize=11, labelpad=6)
+        ax.set_ylabel(r"KS-distance", fontsize=11, labelpad=6)
         ax.tick_params(axis='both', which='major', labelsize=9)
         ax.legend(title=f"$s_{{normal}}$", title_fontsize=12, fontsize=11, loc="best", frameon=False)
         fig.tight_layout(pad=0.1)
@@ -88,7 +88,7 @@ def visualize_sd_vs_s(pop_size, sel_coef, mut_rate, input_folder, output):
             sns.scatterplot(x='sd/s', y='min_Kolmogorov', data=df, ax=ax, label=f'${u}$', color=colors[i], marker=markers[i], s=25)
 
         ax.set_xlabel(f"$\sigma/s_{{normal}}$", fontsize=11, labelpad=6)
-        ax.set_ylabel(r"D-Statistic", fontsize=11, labelpad=6)
+        ax.set_ylabel(r"KS-distance", fontsize=11, labelpad=6)
         ax.tick_params(axis='both', which='major', labelsize=9)
         ax.legend(title=f"$U_{{normal}}$", title_fontsize=12, fontsize=11, loc="best", frameon=False)
         fig.tight_layout(pad=0.1)
